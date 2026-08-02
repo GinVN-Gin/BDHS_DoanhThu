@@ -27,7 +27,20 @@ function formatMonth(v){if(!v)return"";const[y,m]=v.split("-");return`${m}/${y}`
 function shiftMonth(month,n){const[y,m]=month.split("-").map(Number),d=new Date(y,m-1+n,1);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`}
 function escapeHtml(t){return String(t??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]))}
 function clearOrderReview(){state.currentOrderDraftId=null;renderOrderPreview(null)}
-function showView(id){const leavingOrder=activeViewId()==='orderView'&&id!=='orderView';if(leavingOrder)clearOrderReview();$$('.view').forEach(v=>v.classList.toggle('active',v.id===id));$('#homeBtn').classList.toggle('hidden',id==='homeView');if(id==='reportView')renderAllReports();window.scrollTo({top:0,behavior:'smooth'});updateSaveStateUI()}
+let internalHistoryReady=false;
+let handlingPopState=false;
+function showView(id){
+  const leavingOrder=activeViewId()==='orderView'&&id!=='orderView';
+  if(leavingOrder)clearOrderReview();
+  $$('.view').forEach(v=>v.classList.toggle('active',v.id===id));
+  $('#homeBtn').classList.toggle('hidden',id==='homeView');
+  if(id==='reportView')renderAllReports();
+  window.scrollTo({top:0,behavior:'smooth'});
+  updateSaveStateUI();
+  if(internalHistoryReady&&!handlingPopState&&history.state?.bdhsView!==id){
+    history.pushState({bdhsView:id},'',location.href);
+  }
+}
 let confirmResolver=null;function confirmAction(msg,title="Xác nhận"){$('#confirmTitle').textContent=title;$('#confirmMessage').textContent=msg;$('#confirmModal').classList.remove('hidden');return new Promise(r=>confirmResolver=r)}function closeConfirm(v){$('#confirmModal').classList.add('hidden');if(confirmResolver)confirmResolver(v);confirmResolver=null}
 
 function getRevenueDraft(){const cash=value('#cash'),transfer=value('#transfer'),dailyExpense=value('#dailyExpense'),partTimeSalary=value('#partTimeSalary'),storeExpense=dailyExpense+partTimeSalary,totalRevenue=cash+transfer+storeExpense;return{cash,transfer,dailyExpense,partTimeSalary,storeExpense,totalRevenue}}
@@ -140,6 +153,44 @@ $$('.settings-accordion').forEach(detail=>detail.addEventListener('toggle',()=>{
 document.addEventListener('click',e=>{const er=e.target.closest('[data-edit-revenue]'),dr=e.target.closest('[data-delete-revenue]'),ep=e.target.closest('[data-edit-purchase]'),dp=e.target.closest('[data-delete-purchase]');if(er)editRevenue(er.dataset.editRevenue);if(dr)deleteRevenue(dr.dataset.deleteRevenue);if(ep)editPurchase(ep.dataset.editPurchase);if(dp)deletePurchase(dp.dataset.deletePurchase)});
 
 normalizeData();applySettings();$('#revenueDate').value=todayISO();$('#purchaseDate').value=todayISO();$('#reportDay').value=todayISO();$('#reportWeekDate').value=todayISO();$('#reportMonth').value=currentMonthISO();$('#compareMonth').value=currentMonthISO();$('#listMonth').value=currentMonthISO();resetRevenueForm();resetPurchaseForm();renderAll();
+
+// V2.9.4 — lịch sử điều hướng nội bộ cho PWA/Android/iOS
+history.replaceState({bdhsView:activeViewId()||'homeView'},'',location.href);
+internalHistoryReady=true;
+window.addEventListener('popstate',async(event)=>{
+  const modal=document.querySelector('#settingsHubModal:not(.hidden)');
+  if(modal){
+    document.querySelector('#settingsHubClose')?.click();
+    history.pushState({bdhsView:activeViewId()||'settingsView'},'',location.href);
+    return;
+  }
+  const target=event.state?.bdhsView||'homeView';
+  const current=activeViewId()||'homeView';
+  if(target===current)return;
+  if(!await canLeaveCurrent()){
+    history.pushState({bdhsView:current},'',location.href);
+    return;
+  }
+  handlingPopState=true;
+  showView(target);
+  handlingPopState=false;
+});
+
+// Vuốt từ mép trái sang phải để quay về màn trước trong app.
+let bdhsSwipeStartX=0,bdhsSwipeStartY=0,bdhsSwipeTracking=false;
+document.addEventListener('touchstart',event=>{
+  const touch=event.touches?.[0];
+  if(!touch||touch.clientX>34)return;
+  bdhsSwipeStartX=touch.clientX;bdhsSwipeStartY=touch.clientY;bdhsSwipeTracking=true;
+},{passive:true});
+document.addEventListener('touchend',event=>{
+  if(!bdhsSwipeTracking)return;
+  bdhsSwipeTracking=false;
+  const touch=event.changedTouches?.[0];if(!touch)return;
+  const dx=touch.clientX-bdhsSwipeStartX,dy=Math.abs(touch.clientY-bdhsSwipeStartY);
+  if(dx>72&&dy<55&&activeViewId()!=='homeView')history.back();
+},{passive:true});
+
 
 // V1.8 — Đặt hàng MTF: lưu bảng trước, xác nhận sau
 state.currentOrderDraftId = state.currentOrderDraftId || null;

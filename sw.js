@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bdhs-pwa-v2.9.3';
+const CACHE_NAME = 'bdhs-v2.9.4';
 const CORE_ASSETS = [
   './',
   './index.html',
