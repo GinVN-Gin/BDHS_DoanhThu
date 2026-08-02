@@ -6,9 +6,11 @@
   const USERNAME_KEY = "bdhs_cloud_username_v3";
   const REVISION_PREFIX = "bdhs_cloud_revision_v1_";
   const LAST_SYNC_PREFIX = "bdhs_cloud_last_sync_v1_";
-  const PRE_PULL_BACKUP_KEY = "bdhs_pre_cloud_restore_backup_v1";
+  const PRE_PULL_BACKUP_PREFIX = "bdhs_pre_cloud_restore_backup_v1_";
+  const BRANCH_CACHE_PREFIX = "bdhs_branch_cache_v1_";
+  const ACTIVE_BRANCH_KEY = "bdhs_active_branch_v1";
   const DEVICE_ID_KEY = "bdhs_cloud_device_id_v1";
-  const PENDING_KEY = "bdhs_cloud_pending_v1";
+  const PENDING_PREFIX = "bdhs_cloud_pending_v1_";
   const AUTO_SYNC_DELAY = 5000;
 
   const DATA_KEYS = Object.freeze([
@@ -28,6 +30,72 @@
   let offlineMode = false;
   let autoSyncTimer = null;
   let autoSyncRunning = false;
+
+
+  function branchCacheKey(branchId) {
+    return `${BRANCH_CACHE_PREFIX}${branchId || "UNKNOWN"}`;
+  }
+
+  function pendingKey(branchId) {
+    return `${PENDING_PREFIX}${branchId || "UNKNOWN"}`;
+  }
+
+  function prePullBackupKey(branchId) {
+    return `${PRE_PULL_BACKUP_PREFIX}${branchId || "UNKNOWN"}`;
+  }
+
+  function snapshotDataKeys() {
+    const storage = {};
+    for (const key of DATA_KEYS) {
+      const raw = localStorage.getItem(key);
+      if (raw !== null) storage[key] = raw;
+    }
+    return storage;
+  }
+
+  function clearDataKeys() {
+    for (const key of DATA_KEYS) localStorage.removeItem(key);
+  }
+
+  function saveBranchCache(branchId) {
+    if (!branchId) return;
+    writeJson(branchCacheKey(branchId), {
+      branchId,
+      savedAt: new Date().toISOString(),
+      storage: snapshotDataKeys(),
+    });
+  }
+
+  function restoreBranchCache(branchId) {
+    const cache = readJson(branchCacheKey(branchId), null);
+    if (!cache?.storage) return false;
+    clearDataKeys();
+    for (const [key, value] of Object.entries(cache.storage)) {
+      if (DATA_KEYS.includes(key)) localStorage.setItem(key, String(value));
+    }
+    return true;
+  }
+
+  function ensureBranchContext(branchId) {
+    if (!branchId) return false;
+    const current = localStorage.getItem(ACTIVE_BRANCH_KEY);
+    if (current === branchId) return false;
+
+    if (current) saveBranchCache(current);
+
+    const hadTargetCache = Boolean(readJson(branchCacheKey(branchId), null)?.storage);
+    if (hadTargetCache) {
+      restoreBranchCache(branchId);
+    } else if (current) {
+      clearDataKeys();
+    } else {
+      // Nâng cấp từ bản cũ: dữ liệu local hiện có được gắn cho tài khoản đang đăng nhập.
+      saveBranchCache(branchId);
+    }
+
+    localStorage.setItem(ACTIVE_BRANCH_KEY, branchId);
+    return Boolean(current || hadTargetCache);
+  }
 
   function readJson(key, fallback) {
     try {
@@ -175,6 +243,7 @@
         deviceId: getDeviceId(),
         deviceName: deviceName(),
       });
+      const branchChanged = ensureBranchContext(result.branchId);
       saveAuth({
         username: result.username,
         branchId: result.branchId,
@@ -183,6 +252,10 @@
         expiresAt: result.expiresAt,
       });
       $("#loginPassword").value = "";
+      if (branchChanged) {
+        window.location.reload();
+        return;
+      }
       hideLogin();
       if (Number(result.revision || 0) === 0) setPendingChanges(true);
       scheduleAutoSync(500);
@@ -238,7 +311,12 @@
     }
     try {
       const result = await post({ action: "session", authToken: auth.authToken, deviceId: getDeviceId() });
+      const branchChanged = ensureBranchContext(result.branchId);
       saveAuth({ ...auth, branchId: result.branchId, branchName: result.branchName, expiresAt: result.expiresAt });
+      if (branchChanged) {
+        window.location.reload();
+        return true;
+      }
       if ($("#cloudRemoteRevision")) $("#cloudRemoteRevision").textContent = String(result.revision || 0);
       return true;
     } catch (error) {
@@ -276,7 +354,8 @@
 
   function createLocalBackup(reason) {
     const backup = { reason, createdAt: new Date().toISOString(), data: collectData() };
-    writeJson(PRE_PULL_BACKUP_KEY, backup);
+    const auth = getAuth();
+    writeJson(prePullBackupKey(auth?.branchId), backup);
     return backup;
   }
 
@@ -289,6 +368,8 @@
         localStorage.removeItem(key);
       }
     }
+    const auth = getAuth();
+    if (auth?.branchId) saveBranchCache(auth.branchId);
   }
 
   function requireAuth() {
@@ -398,12 +479,17 @@
   }
 
   function hasPendingChanges() {
-    return localStorage.getItem(PENDING_KEY) === "1";
+    const auth = getAuth();
+    const branchId = auth?.branchId || localStorage.getItem(ACTIVE_BRANCH_KEY);
+    return localStorage.getItem(pendingKey(branchId)) === "1";
   }
 
   function setPendingChanges(value) {
-    if (value) localStorage.setItem(PENDING_KEY, "1");
-    else localStorage.removeItem(PENDING_KEY);
+    const auth = getAuth();
+    const branchId = auth?.branchId || localStorage.getItem(ACTIVE_BRANCH_KEY);
+    if (!branchId) return;
+    if (value) localStorage.setItem(pendingKey(branchId), "1");
+    else localStorage.removeItem(pendingKey(branchId));
   }
 
   function scheduleAutoSync(delay = AUTO_SYNC_DELAY) {
@@ -511,10 +597,13 @@
   }
 
   function logout() {
-    if (!window.confirm("Đăng xuất khỏi chi nhánh này? Dữ liệu cục bộ vẫn được giữ trên thiết bị.")) return;
+    if (!window.confirm("Đăng xuất khỏi chi nhánh này? Dữ liệu riêng của chi nhánh vẫn được giữ trên thiết bị.")) return;
+    const auth = getAuth();
+    if (auth?.branchId) saveBranchCache(auth.branchId);
+    clearDataKeys();
+    localStorage.removeItem(ACTIVE_BRANCH_KEY);
     clearAuth();
-    showLoginPanel("login");
-    showLogin();
+    window.location.reload();
   }
 
   async function run(task, loginContext = false) {
@@ -560,6 +649,8 @@
     $("#cloudChangePassword")?.addEventListener("click", () => run(changePassword));
 
     window.addEventListener("bdhs:data-saved", () => {
+      const auth = getAuth();
+      if (auth?.branchId) saveBranchCache(auth.branchId);
       setPendingChanges(true);
       updateSyncUI();
       scheduleAutoSync();
@@ -575,6 +666,7 @@
   async function boot() {
     bind();
     const auth = getAuth();
+    if (auth?.branchId) ensureBranchContext(auth.branchId);
     if (!auth?.authToken) {
       showLogin();
       return;

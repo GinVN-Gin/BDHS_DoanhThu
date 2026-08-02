@@ -709,7 +709,7 @@ body[data-theme="dark"] input::placeholder,body[data-theme="dark"] textarea::pla
   .summary-card span{font-size:9px!important}
   .summary-card strong{font-size:10.5px!important}
 }
-\n
+
 /* V2.9.4 — Mobile spacing + Settings 2-column layout */
 @media(max-width:760px){
   /* Hạ toàn bộ nội dung Home xuống nhẹ, không đổi cấu trúc */

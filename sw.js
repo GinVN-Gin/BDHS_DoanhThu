@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bdhs-v2.9.4';
+const CACHE_NAME = 'bdhs-v2.9.6-account-isolation';
 const CORE_ASSETS = [
   './',
   './index.html',
