@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f766e" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="BDHS" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <title>BDHS – Quản lý kinh doanh</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <div id="authGate" class="auth-gate hidden" aria-live="polite">
+    <div class="auth-shell">
+      <div class="auth-brand">
+        <span class="auth-mark">B</span>
+        <div><strong>BDHS</strong><small>Quản lý doanh thu</small></div>
+      </div>
+
+      <section id="authPanelLogin" class="auth-panel">
+        <p class="eyebrow">ĐĂNG NHẬP CHI NHÁNH</p>
+        <h1>Chào mừng trở lại</h1>
+        <p class="auth-lead">Đăng nhập một lần trên thiết bị để đồng bộ dữ liệu.</p>
+        <label>Tài khoản<input id="loginUsername" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="socxoai hoặc rachgia" /></label>
+        <label>Mật khẩu<input id="loginPassword" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu" /></label>
+        <button id="loginSubmit" class="btn primary auth-main-btn" type="button">Đăng nhập</button>
+        <div class="auth-links"><button id="showForgotPassword" type="button">Quên mật khẩu?</button><button id="useOffline" type="button">Dùng ngoại tuyến</button></div>
+      </section>
+
+      <section id="authPanelForgot" class="auth-panel hidden">
+        <p class="eyebrow">KHÔI PHỤC MẬT KHẨU</p>
+        <h1>Nhận mã qua email</h1>
+        <p class="auth-lead">Mã xác minh có hiệu lực trong 10 phút.</p>
+        <label>Tài khoản<input id="forgotUsername" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" /></label>
+        <button id="forgotSend" class="btn primary auth-main-btn" type="button">Gửi mã xác minh</button>
+        <button id="backToLoginFromForgot" class="auth-back" type="button">← Quay lại đăng nhập</button>
+      </section>
+
+      <section id="authPanelReset" class="auth-panel hidden">
+        <p class="eyebrow">ĐẶT LẠI MẬT KHẨU</p>
+        <h1>Tạo mật khẩu mới</h1>
+        <label>Tài khoản<input id="resetUsername" type="text" readonly /></label>
+        <label>Mã xác minh<input id="resetCode" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6 chữ số" /></label>
+        <label>Mật khẩu mới<input id="resetPassword" type="password" autocomplete="new-password" /></label>
+        <label>Nhập lại mật khẩu<input id="resetPasswordConfirm" type="password" autocomplete="new-password" /></label>
+        <button id="resetSubmit" class="btn primary auth-main-btn" type="button">Đặt lại mật khẩu</button>
+        <button id="backToLoginFromReset" class="auth-back" type="button">← Quay lại đăng nhập</button>
+      </section>
+
+      <div id="authMessage" class="auth-message is-idle"></div>
+    </div>
+  </div>
+
+  <div class="app-shell">
+    <header class="app-header">
+      <div><p class="eyebrow">Quản lý kinh doanh</p><h1 id="appBusinessName">BDHS Sóc Xoài</h1></div>
+      <button id="homeBtn" class="icon-btn hidden" type="button" aria-label="Về trang chủ">⌂</button>
+    </header>
+
+    <div id="saveStateIndicator" class="save-state saved"><span class="save-state-dot"></span><span id="saveStateText">Đã lưu</span></div>
+
+    <main>
+      <section id="homeView" class="view active">
+        <div class="home-overview-label"><span>Tổng quan tháng hiện tại</span></div>
+        <div class="summary-grid">
+          <article class="summary-card primary"><span>Doanh thu tháng</span><strong id="homeRevenue">0 ₫</strong></article>
+          <article class="summary-card danger"><span>Tổng chi</span><strong id="homeExpense">0 ₫</strong></article>
+          <article class="summary-card success"><span>Lợi nhuận</span><strong id="homeProfit">0 ₫</strong></article>
+        </div>
+        <div class="main-actions app-grid app-grid-primary">
+          <button class="action-card app-tile revenue-tile" data-view="revenueView" type="button"><span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 9h.01M17 15h.01"/><circle cx="12" cy="12" r="3"/></svg></span><b>Doanh thu</b><small>Nhập theo ngày</small></button>
+          <button class="action-card app-tile purchase-tile" data-view="purchaseView" type="button"><span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.4 10.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L21 8H7"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg></span><b>Mua hàng</b><small>Chi bằng vốn lưu động</small></button>
+          <button class="action-card app-tile order-tile" data-view="orderView" type="button"><span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="m3 8 9 5v8l-9-5V8Zm18 0-9 5v8l9-5V8Z"/></svg></span><b>Đặt hàng MTF</b><small>VAT / Không VAT</small></button>
+        </div>
+        <div class="home-group-label">QUẢN LÝ & PHÂN TÍCH</div>
+        <div class="main-actions app-grid app-grid-secondary">
+          <button class="action-card app-tile compact-home-tile report-tile" data-view="reportView" type="button"><span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10m6 10V4m6 16v-7m4 7H2"/></svg></span><b>Báo cáo</b><small>Ngày, tuần, tháng</small></button>
+          <button class="action-card app-tile compact-home-tile inventory-tile" data-view="inventoryView" type="button"><span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M9 9h6m-6 4h6m-6 4h4"/></svg></span><b>Kiểm kê</b><small>Theo tháng</small></button>
+          <button class="action-card app-tile compact-home-tile settings-tile" data-view="settingsView" type="button"><span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg></span><b>Cài đặt</b><small>Giao diện & dữ liệu</small></button>
+        </div>
+      </section>
+
+      <section id="revenueView" class="view">
+        <div class="section-heading"><div><p class="eyebrow">NHẬP LIỆU</p><h2>Doanh thu ngày</h2></div><span id="revenueEditBadge" class="edit-badge hidden">Đang sửa</span></div>
+        <form id="revenueForm" class="form-card">
+          <label>Ngày<input id="revenueDate" type="date" required /></label>
+          <div class="form-grid">
+            <label>Tiền mặt<input id="cash" class="money-input" type="text" inputmode="numeric" autocomplete="off" placeholder="0" /></label>
+            <label>Chuyển khoản<input id="transfer" class="money-input" type="text" inputmode="numeric" autocomplete="off" placeholder="0" /></label>
+            <label>Chi nhỏ lẻ trong ngày<input id="dailyExpense" class="money-input" type="text" inputmode="numeric" autocomplete="off" placeholder="0" /></label>
+            <label>Lương nhân viên part-time<input id="partTimeSalary" class="money-input" type="text" inputmode="numeric" autocomplete="off" placeholder="0" /></label>
+          </div>
+          <div class="live-result"><div><span>Tổng chi cửa hàng</span><strong id="liveStoreExpense">0 ₫</strong></div><div><span>Tổng doanh thu ngày</span><strong id="liveRevenue">0 ₫</strong></div></div>
+          <div class="button-row"><button id="revenueSubmitBtn" class="btn primary" type="submit">Lưu</button><button id="cancelRevenue" class="btn secondary" type="button">Hủy</button><button id="resetRevenue" class="btn ghost" type="button">Reset ô</button></div>
+        </form>
+        <div class="table-card compact-table-card">
+          <div class="card-title-row"><div><h3>Dữ liệu chi vừa nhập</h3><small class="table-hint">Hiện 1 dòng gần nhất để kiểm tra</small></div><div class="table-title-actions"><span id="revenueCount" class="badge">0 ngày</span><button id="openRevenueList" class="mini-btn" type="button">Xem danh sách tháng</button></div></div>
+          <div class="table-wrap compact-data-table"><table><thead><tr><th>Ngày</th><th>Tổng</th><th>Tiền mặt</th><th>CK</th><th>Chi nhỏ</th><th>Lương PT</th><th>Chi CH</th><th></th></tr></thead><tbody id="revenueLatestBody"></tbody></table></div>
+        </div>
+      </section>
+
+      <section id="purchaseView" class="view">
+        <div class="section-heading"><div><p class="eyebrow">NHẬP LIỆU</p><h2>Mua hàng</h2></div><span id="purchaseEditBadge" class="edit-badge hidden">Đang sửa</span></div>
+        <form id="purchaseForm" class="form-card">
+          <label>Ngày<input id="purchaseDate" type="date" required /></label>
+          <div class="form-grid">
+            <label>MTF VAT<input id="mtfVat" class="money-input" type="text" inputmode="numeric" autocomplete="off" placeholder="0" /></label>
+            <label>MTF<input id="mtfNone" class="money-input" type="text" inputmode="numeric" autocomplete="off" placeholder="0" /></label>
+            <label>Mua hàng khác / Chi vốn lưu động<input id="otherPurchase" class="money-input" type="text" inputmode="numeric" autocomplete="off" placeholder="0" /></label>
+            <label>Nội dung<select id="purchaseContentSelect"><option value="">Chọn nội dung đã lưu</option><option value="__custom__">Tự điền nội dung mới</option></select></label>
+          </div>
+          <label id="customContentWrap" class="hidden">Gõ nội dung<input id="customContent" type="text" maxlength="100" placeholder="Ví dụ: Nhập hàng tổng" /></label>
+          <div class="live-result single"><div><span>Tổng mua hàng</span><strong id="livePurchaseTotal">0 ₫</strong></div></div>
+          <div class="button-row"><button id="purchaseSubmitBtn" class="btn primary" type="submit">Lưu</button><button id="cancelPurchase" class="btn secondary" type="button">Hủy</button><button id="resetPurchase" class="btn ghost" type="button">Reset ô</button></div>
+        </form>
+        <div class="table-card compact-table-card">
+          <div class="card-title-row"><div><h3>Dữ liệu vừa nhập</h3><small class="table-hint">Hiện 1 dòng gần nhất để kiểm tra</small></div><div class="table-title-actions"><span id="purchaseCount" class="badge">0 dòng</span><button id="openPurchaseList" class="mini-btn" type="button">Xem danh sách tháng</button></div></div>
+          <div class="table-wrap compact-data-table"><table><thead><tr><th>Ngày</th><th>Nội dung mua hàng</th><th>Số tiền</th><th></th></tr></thead><tbody id="purchaseLatestBody"></tbody></table></div>
+        </div>
+      </section>
+
+      <section id="inventoryView" class="view">
+        <div class="section-heading"><div><p class="eyebrow">HÀNG TỒN</p><h2>Kiểm kê tháng</h2></div></div>
+
+        <section id="inventoryHomePanel" class="inventory-home-panel">
+          <button id="newInventoryBtn" class="inventory-new-tile" type="button"><span>＋</span><b>Kiểm hàng mới</b><small>Tạo kỳ kiểm kê theo tháng</small></button>
+          <div class="table-card inventory-history-card">
+            <div class="card-title-row"><div><h3>Các kỳ đã kiểm kê</h3><small>Chọn một kỳ để xem toàn bộ danh mục</small></div><span id="inventoryHistoryCount" class="badge">0 kỳ</span></div>
+            <div id="inventoryHistoryList" class="inventory-history-list"></div>
+          </div>
+        </section>
+
+        <section id="inventoryMonthPicker" class="form-card inventory-picker hidden">
+          <div><p class="eyebrow">TẠO KỲ MỚI</p><h3>Chọn tháng kiểm kê</h3></div>
+          <label>Tháng<input id="inventoryMonth" type="month" /></label>
+          <div class="button-row"><button id="startInventoryBtn" class="btn primary" type="button">Bắt đầu kiểm hàng</button><button id="cancelInventoryPicker" class="btn secondary" type="button">Hủy</button></div>
+          <p id="inventoryPickerMessage" class="inventory-picker-message"></p>
+        </section>
+
+        <section id="inventoryCatalog" class="inventory-catalog hidden">
+          <div class="inventory-editor-bar">
+            <button id="backInventoryHome" class="mini-btn" type="button">‹ Danh sách tháng</button>
+            <div><p class="eyebrow">KIỂM KÊ</p><h3 id="inventoryEditorTitle">Kiểm hàng tháng</h3></div>
+            <div class="inventory-head-actions">
+              <button id="editInventoryCatalog" class="mini-btn" type="button">Chỉnh sửa danh mục</button>
+              <button id="saveInventoryCatalog" class="mini-btn primary hidden" type="button">Lưu danh mục</button>
+              <button id="cancelInventoryCatalog" class="mini-btn hidden" type="button">Hủy sửa</button>
+            </div>
+          </div>
+          <small id="inventoryModeHint" class="inventory-mode-hint">Chỉ nhập số lượng thực tế.</small>
+          <div id="inventoryGroups"></div>
+          <div class="inventory-summary-grid">
+            <article><span>MTF VAT tồn</span><strong id="inventoryMtfTotal">0 ₫</strong></article>
+            <article><span>Mua hàng còn lại</span><strong id="inventoryOtherTotal">0 ₫</strong></article>
+            <article class="inventory-total-card"><span>Tổng hàng tồn</span><strong id="inventoryGrandTotal">0 ₫</strong></article>
+          </div>
+          <div class="inventory-footer-actions">
+            <button id="saveInventory" class="btn primary" type="button">Lưu kiểm kê</button>
+            <button id="resetInventoryQty" class="btn ghost" type="button">Reset số lượng</button>
+          </div>
+          <p id="inventorySaveStatus" class="inventory-save-status"></p>
+        </section>
+      </section>
+
+      <section id="reportView" class="view">
+        <div class="section-heading"><div><p class="eyebrow">TỔNG HỢP</p><h2>Báo cáo chi tiết</h2></div></div>
+        <div class="report-menu">
+          <button class="report-menu-btn active" data-report="dayPanel" type="button"><b>Báo cáo ngày</b><small>Xem từng ngày</small></button>
+          <button class="report-menu-btn" data-report="weekPanel" type="button"><b>Báo cáo tuần</b><small>Tổng hợp 7 ngày</small></button>
+          <button class="report-menu-btn" data-report="monthPanel" type="button"><b>Báo cáo tháng</b><small>Chi tiết như file Excel</small></button>
+          <button class="report-menu-btn" data-report="comparePanel" type="button"><b>So sánh 3 tháng</b><small>Thu, chi và mua hàng</small></button>
+        </div>
+
+        <section id="dayPanel" class="report-panel active">
+          <div class="panel-toolbar"><label>Chọn ngày<input id="reportDay" type="date" /></label></div>
+          <div id="dayKpis" class="report-highlight-grid"></div>
+          <div class="report-detail-grid"><section class="report-group"><div class="report-group-title"><span>Doanh thu ngày</span></div><div id="dayRevenueRows" class="report-group-body"></div></section><section class="report-group"><div class="report-group-title"><span>Chi vốn lưu động trong ngày</span></div><div id="dayPurchaseRows" class="report-group-body"></div></section></div>
+          <div class="table-card"><div class="card-title-row"><h3>Danh sách món mua trong ngày</h3></div><div class="table-wrap"><table><thead><tr><th>Ngày</th><th>Nội dung mua hàng</th><th>Số tiền</th><th></th></tr></thead><tbody id="dayPurchaseList"></tbody></table></div></div>
+        </section>
+
+        <section id="weekPanel" class="report-panel">
+          <div class="panel-toolbar"><label>Chọn ngày trong tuần<input id="reportWeekDate" type="date" /></label><strong id="weekRangeLabel"></strong></div>
+          <div id="weekKpis" class="report-highlight-grid"></div>
+          <div class="comparison-card"><div class="comparison-head"><div><p class="eyebrow">7 NGÀY</p><h3>Biểu đồ tuần</h3></div><select id="weekMetric"><option value="totalRevenue">Tổng thu</option><option value="totalExpense">Tổng chi</option><option value="profit">Lợi nhuận</option><option value="mtfVat">MTF VAT</option><option value="mtfNone">MTF</option><option value="otherPurchase">Mua hàng khác</option></select></div><div id="weekChart" class="bar-chart seven"></div></div>
+          <div class="table-card"><div class="card-title-row"><h3>Số liệu từng ngày</h3></div><div class="table-wrap"><table><thead><tr><th>Ngày</th><th>Tổng thu</th><th>Tổng chi</th><th>Lợi nhuận</th><th>Mua hàng</th></tr></thead><tbody id="weekTableBody"></tbody></table></div></div>
+        </section>
+
+        <section id="monthPanel" class="report-panel">
+          <div class="panel-toolbar month-nav"><button id="monthPrev" class="mini-btn" type="button">‹</button><label>Tháng báo cáo<input id="reportMonth" type="month" /></label><button id="monthNext" class="mini-btn" type="button">›</button><button id="monthCurrent" class="mini-btn" type="button">Tháng hiện tại</button><button id="exportExcelMonth" class="mini-btn export-excel-btn" type="button">Xuất Excel tháng</button></div>
+          <div id="monthKpis" class="report-highlight-grid"></div>
+          <div class="report-detail-grid">
+            <section class="report-group"><div class="report-group-title"><span>Doanh thu</span><strong id="monthRevenueTotal"></strong></div><div id="monthRevenueRows" class="report-group-body"></div></section>
+            <section class="report-subgroup"><button id="toggleMonthStore" class="report-subgroup-toggle" type="button" aria-expanded="false"><span>Chi cửa hàng <small>(bấm xem chi tiết)</small></span><strong id="monthStoreTotal"></strong><span>⌄</span></button><div id="monthStoreRows" class="report-subgroup-body hidden"></div></section>
+            <section class="report-group"><div class="report-group-title"><span>Mua hàng</span><strong id="monthPurchaseTotal"></strong></div><div id="monthPurchaseRows" class="report-group-body"></div></section>
+            <section class="report-group"><div class="report-group-title"><span>Kết quả</span><strong id="monthProfitTotal"></strong></div><div id="monthResultRows" class="report-group-body"></div></section>
+          </div>
+          <div class="table-card"><div class="card-title-row"><h3>Tổng theo nội dung mua hàng</h3></div><div class="table-wrap"><table><thead><tr><th>Nội dung</th><th>Số lần</th><th>MTF VAT</th><th>MTF</th><th>Mua hàng</th><th>Tổng</th></tr></thead><tbody id="contentSummaryBody"></tbody></table></div></div>
+        </section>
+
+        <section id="comparePanel" class="report-panel">
+          <div class="panel-toolbar"><label>Tháng chính<input id="compareMonth" type="month" /></label><label>Chỉ tiêu<select id="comparisonMetric"><option value="totalRevenue">Tổng thu</option><option value="totalExpense">Tổng chi</option><option value="profit">Lợi nhuận</option><option value="mtfVat">MTF VAT</option><option value="mtfNone">MTF</option><option value="otherPurchase">Mua hàng & chi khác</option><option value="purchaseTotal">Tổng mua hàng</option></select></label><label>Nội dung mua hàng<select id="comparisonContent"><option value="">Tất cả nội dung</option></select></label></div>
+          <div class="comparison-card"><div class="comparison-head"><div><p class="eyebrow">SO SÁNH 3 THÁNG</p><h3 id="comparisonTitle">Tổng thu</h3></div></div><div id="comparisonChart" class="bar-chart"></div></div>
+          <div id="comparisonChanges" class="change-grid"></div>
+          <div class="table-card comparison-table-card"><div class="card-title-row"><h3>Bảng so sánh chi tiết</h3></div><div class="table-wrap comparison-table-wrap"><table class="comparison-table"><thead><tr><th>Chỉ tiêu</th><th id="compareHead1"></th><th id="compareHead2"></th><th id="compareHead3"></th></tr></thead><tbody id="comparisonTableBody"></tbody></table></div></div>
+        </section>
+      </section>
+
+
+      <section id="orderView" class="view">
+        <div class="section-heading order-page-heading"><div><p class="eyebrow">ĐƠN ĐẶT HÀNG</p><h2>Đặt hàng <span id="orderTypeTitle" class="order-type-title vat-label">MTF VAT</span></h2></div></div>
+        <div class="form-card order-head compact-order-head">
+          <div class="order-type-switch compact-switch"><button id="orderVatBtn" class="type-choice vat active" type="button">MTF VAT</button><button id="orderNoVatBtn" class="type-choice novat" type="button">MTF</button></div>
+          <label class="compact-date-label">Ngày đặt<input id="orderDate" type="date" /></label>
+        </div>
+        <div class="table-card order-stock-card compact-order-card">
+          <div class="card-title-row"><div><h3>Nhập tồn hiện tại</h3><small>Tối đa 2 chữ số. Cột cần đặt được hệ thống tự tính.</small></div></div>
+          <div class="table-wrap"><table class="order-table compact-order-table"><thead><tr><th>Hàng hóa</th><th>ĐVT</th><th>Tồn chuẩn</th><th>Tồn hiện tại</th><th>Cần đặt</th><th>Giá nhập</th><th>Thành tiền</th></tr></thead><tbody id="orderItemsBody"></tbody></table></div>
+          <div class="button-row compact-order-actions"><button id="saveOrderDraft" class="btn primary" type="button">Lưu bảng đặt hàng</button><button id="resetOrder" class="btn ghost" type="button">Reset</button></div>
+        </div>
+
+        <section id="orderPreviewSection" class="order-preview-section hidden">
+          <div id="orderPendingWarning" class="order-pending-warning"><strong>CHƯA XÁC NHẬN ĐÃ ĐẶT</strong><span>Đơn này chưa được lưu sang phần Chi/Mua hàng.</span></div>
+          <div class="table-card order-preview-card">
+            <div class="card-title-row"><div><h3>Bảng đặt hàng tham khảo</h3><small id="orderPreviewMeta"></small></div><span id="orderPreviewType" class="order-preview-type vat-label">MTF VAT</span></div>
+            <div class="table-wrap"><table class="preview-order-table"><thead><tr><th>STT</th><th>Hàng hóa</th><th>ĐVT</th><th>SL đặt</th><th>Giá</th><th>Thành tiền</th></tr></thead><tbody id="orderPreviewBody"></tbody></table></div>
+            <div class="order-total-grid compact-totals">
+              <article><span>Tiền hàng</span><strong id="orderSubtotal">0 ₫</strong></article>
+              <article id="orderVatCard"><span>VAT 8%</span><strong id="orderVat">0 ₫</strong></article>
+              <article class="grand"><span>Tổng tiền</span><strong id="orderGrandTotal">0 ₫</strong></article>
+            </div>
+            <div class="button-row preview-actions"><button id="confirmOrder" class="btn primary" type="button">Xác nhận đã đặt</button><button id="exportOrderImage" class="btn secondary" type="button">Xuất ảnh phiếu đặt hàng</button><button id="shareOrder" class="btn ghost" type="button">Chia sẻ</button></div>
+          </div>
+        </section>
+
+        <div class="order-month-summary">
+          <article><span>Tổng đơn MTF</span><strong id="orderMonthTotal">0 ₫</strong><small id="orderMonthCount">0 đơn</small></article>
+          <article class="vat-stat"><span>MTF VAT</span><strong id="orderMonthVat">0 ₫</strong><small id="orderMonthVatCount">0 đơn</small></article>
+          <article class="novat-stat"><span>MTF</span><strong id="orderMonthNoVat">0 ₫</strong><small id="orderMonthNoVatCount">0 đơn</small></article>
+        </div>
+        <div class="table-card order-history-card">
+          <div class="card-title-row order-history-head"><div><h3>Đơn trong tháng</h3><small>Toàn bộ đơn đã lưu trong tháng được chọn</small></div><label>Tháng<input id="orderHistoryMonth" type="month" /></label></div>
+          <div class="table-wrap"><table class="order-history-table"><thead><tr><th>Ngày</th><th>Loại</th><th>Tổng</th><th>Trạng thái</th><th></th></tr></thead><tbody id="orderLatestBody"></tbody></table></div>
+        </div>
+      </section>
+
+      <section id="settingsView" class="view">
+        <div class="section-heading"><div><p class="eyebrow">TÙY CHỈNH</p><h2>Cài đặt</h2></div></div>
+        <div class="settings-tile-grid" aria-label="Nhóm cài đặt">
+          <button class="settings-launch-tile" data-settings-group="account" type="button"><span class="settings-launch-icon">◌</span><b>Tài khoản</b><small>Chi nhánh & người mua</small></button>
+          <button class="settings-launch-tile" data-settings-group="appearance" type="button"><span class="settings-launch-icon">◇</span><b>Giao diện</b><small>Theme, Home & hình nền</small></button>
+          <button class="settings-launch-tile" data-settings-panel="order-design" type="button"><span class="settings-launch-icon">▤</span><b>Phiếu đặt hàng</b><small>Màu & bố cục phiếu</small></button>
+          <button class="settings-launch-tile" data-settings-panel="excel" type="button"><span class="settings-launch-icon">▦</span><b>Excel</b><small>Mẫu xuất báo cáo tháng</small></button>
+          <button class="settings-launch-tile" data-settings-panel="cloud" type="button"><span class="settings-launch-icon">☁</span><b>Đồng bộ</b><small>Tự động & tài khoản Cloud</small></button>
+          <button class="settings-launch-tile" data-settings-panel="backup" type="button"><span class="settings-launch-icon">↥</span><b>Sao lưu</b><small>Backup & khôi phục JSON</small></button>
+        </div>
+        <div id="settingsPanelsSource" class="settings-panels-source" hidden>
+          <div class="settings-grid settings-accordion-grid">
+
+          <details id="settingsIdentityPanel" data-settings-panel-id="identity" class="settings-card settings-accordion identity-settings">
+            <summary><div><h3>Thông tin chi nhánh</h3><p>Tên dùng trên ứng dụng, phiếu đặt hàng, backup và file Excel.</p></div><span class="accordion-chevron">⌄</span></summary>
+            <div class="settings-accordion-body"><label>Tên hiển thị<input id="businessName" type="text" maxlength="80" placeholder="BDHS Sóc Xoài" /></label><button id="saveBusinessName" class="btn primary" type="button">Lưu tên chi nhánh</button></div>
+          </details>
+
+          <details id="settingsOrderPanel" data-settings-panel-id="order-design" class="settings-card settings-accordion order-design-settings">
+            <summary><div><h3>Thiết kế phiếu đặt hàng</h3><p>Tùy chỉnh màu toàn phiếu và mật độ bố cục.</p></div><span class="accordion-chevron">⌄</span></summary>
+            <div class="settings-accordion-body"><div class="form-grid order-design-grid">
+              <label>Màu header<input id="orderHeaderColor" type="color" value="#1f3a5f" /></label>
+              <label>Màu footer<input id="orderFooterColor" type="color" value="#1f3a5f" /></label>
+              <label>Màu viền<input id="orderBorderColor" type="color" value="#1f3a5f" /></label>
+              <label>Màu chữ chi nhánh<input id="orderBranchTextColor" type="color" value="#1f3a5f" /></label>
+              <label>Bố cục<select id="orderLayout"><option value="compact">Gọn</option><option value="balanced">Cân đối</option><option value="spacious">Thoáng</option></select></label>
+            </div><div id="orderDesignPreview" class="order-design-preview"><span id="orderDesignPreviewName">BDHS Sóc Xoài</span><em id="orderDesignPreviewType">Đơn hàng có VAT</em></div><button id="saveOrderDesign" class="btn primary" type="button">Lưu thiết kế phiếu</button></div>
+          </details>
+
+          <details id="settingsBuyerPanel" data-settings-panel-id="buyer" class="settings-card settings-accordion buyer-settings buyer-details"><summary><div><h3>Thông tin người mua hàng</h3><p>Người nhận, nơi nhận, hóa đơn VAT và ghi chú trên phiếu.</p></div><span class="accordion-chevron">⌄</span></summary><div class="settings-accordion-body buyer-settings-body">
+            <label>Tên cửa hàng<input id="buyerShopName" type="text" /></label>
+            <label>Địa chỉ<input id="buyerAddress" type="text" /></label>
+            <div class="form-grid"><label>Người nhận<input id="buyerContact" type="text" /></label><label>Số điện thoại<input id="buyerPhone" type="text" /></label></div>
+            <label>Nơi nhận<input id="buyerDeliveryPlace" type="text" placeholder="Ví dụ: BDHS Sóc Xoài" /></label>
+            <div class="settings-subgroup"><h4>Thông tin hóa đơn VAT</h4><div class="form-grid"><label>Tên đơn vị<input id="invoiceCompanyName" type="text" /></label><label>Mã số thuế<input id="invoiceTaxCode" type="text" /></label></div><label>Địa chỉ xuất hóa đơn<input id="invoiceAddress" type="text" /></label><label>Email nhận hóa đơn<input id="invoiceEmail" type="email" /></label></div>
+            <div class="form-grid"><label>Số tài khoản<input id="buyerBankAccount" type="text" /></label><label>Ngân hàng<input id="buyerBank" type="text" /></label></div>
+            <label>Ghi chú mặc định<input id="buyerNote" type="text" /></label>
+            <button id="saveBuyerProfile" class="btn primary" type="button">Lưu thông tin</button></div></details>
+
+          <details id="settingsHomePanel" data-settings-panel-id="home" class="settings-card settings-accordion home-ui-settings">
+            <summary><div><h3>Giao diện Home</h3><p>Kích thước, số cột, độ bóng và độ bo của các icon chức năng.</p></div><span class="accordion-chevron">⌄</span></summary>
+            <div class="settings-accordion-body"><div class="form-grid">
+              <label>Kích thước card<select id="homeCardSize"><option value="small">Nhỏ</option><option value="medium">Vừa</option><option value="large">Lớn</option></select></label>
+              <label>Bố cục<select id="homeColumns"><option value="2">2 cột</option><option value="3">3 cột</option></select></label>
+              <label>Độ bóng<select id="homeShadow"><option value="soft">Nhẹ</option><option value="medium">Vừa</option><option value="strong">Nổi rõ</option></select></label>
+              <label>Bo góc<select id="homeRadius"><option value="18">18 px</option><option value="22">22 px</option><option value="26">26 px</option></select></label>
+            </div><label>Độ trong card Home: <strong id="homeOpacityValue">94%</strong><input id="homeCardOpacity" type="range" min="75" max="100" step="1" value="94" /></label><div class="button-row"><button id="saveHomeUI" class="btn primary" type="button">Lưu giao diện Home</button><button id="resetHomeUI" class="btn secondary" type="button">Mặc định</button></div></div>
+          </details>
+
+          <details id="settingsAppThemePanel" data-settings-panel-id="app-theme" class="settings-card settings-accordion">
+            <summary><div><h3>Giao diện ứng dụng</h3><p>Tông màu và độ trong của các khối nội dung.</p></div><span class="accordion-chevron">⌄</span></summary>
+            <div class="settings-accordion-body"><label>Tông màu<select id="themeSelect"><option value="business">Business</option><option value="oneui">One UI</option><option value="ios">iOS sáng</option><option value="dark">Dark</option><option value="sunrise">Sáng nhiều màu</option><option value="ocean">Xanh biển</option><option value="forest">Xanh ngọc</option><option value="violet">Tím hiện đại</option></select></label><label>Độ mờ khối nền: <strong id="opacityValue">94%</strong><input id="surfaceOpacity" type="range" min="65" max="100" step="1" value="94" /></label></div>
+          </details>
+
+          <details id="settingsBackgroundPanel" data-settings-panel-id="background" class="settings-card settings-accordion">
+            <summary><div><h3>Hình nền</h3><p>Chọn ảnh từ điện thoại hoặc máy tính.</p></div><span class="accordion-chevron">⌄</span></summary>
+            <div class="settings-accordion-body"><div id="backgroundPreview" class="background-preview"><span>Chưa chọn hình nền</span></div><label>Độ rõ hình nền: <strong id="backgroundOpacityValue">35%</strong><input id="backgroundOpacity" type="range" min="10" max="100" step="1" value="35" /></label><input id="backgroundFile" class="file-input" type="file" accept="image/*" /><div class="button-row"><button id="chooseBackground" class="btn primary" type="button">Chọn hình nền</button><button id="removeBackground" class="btn secondary" type="button">Xóa hình nền</button></div></div>
+          </details>
+
+
+          <details id="settingsExcelPanel" data-settings-panel-id="excel" class="settings-card settings-accordion excel-template-settings">
+            <summary><div><h3>Mẫu Excel tháng</h3><p>Đổi màu, font và bố cục bằng một file .xlsx khác mà không cần sửa code.</p></div><span class="accordion-chevron">⌄</span></summary>
+            <div class="settings-accordion-body">
+              <input id="excelTemplateFile" class="file-input" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+              <div class="button-row"><button id="chooseExcelTemplate" class="btn primary" type="button">Chọn mẫu Excel mới</button><button id="resetExcelTemplate" class="btn secondary" type="button">Dùng mẫu mặc định</button></div>
+              <small id="excelTemplateStatus" class="setting-status">Đang kiểm tra mẫu Excel…</small>
+              <small class="cloud-warning">Có thể đổi thiết kế, nhưng phải giữ nguyên 6 tên sheet và các vùng dữ liệu của mẫu chuẩn.</small>
+            </div>
+          </details>
+
+          <section id="settingsBackupPanel" data-settings-panel-id="backup" class="settings-card backup-visible-card">
+            <div class="sync-visible-head"><div><h3>Sao lưu dữ liệu</h3><p>Tải hoặc khôi phục toàn bộ dữ liệu bằng file JSON.</p></div><span class="sync-live-badge backup-badge">Luôn hiển thị</span></div>
+            <div class="settings-accordion-body sync-visible-body"><div class="button-row"><button id="backupData" class="btn primary" type="button">Tạo file backup</button><button id="restoreData" class="btn secondary" type="button">Khôi phục backup</button></div><input id="restoreFile" class="file-input" type="file" accept="application/json,.json" /><small id="backupStatus" class="setting-status">Chưa thực hiện sao lưu.</small></div>
+          </section>
+
+          <section id="settingsCloudPanel" data-settings-panel-id="cloud" class="settings-card sync-visible-card cloud-sync-card">
+            <div class="sync-visible-head"><div><h3>Đồng bộ Cloud</h3><p>Tài khoản chi nhánh đang đăng nhập trên thiết bị này.</p></div><span class="sync-live-badge">Tự đồng bộ</span></div>
+            <div class="settings-accordion-body sync-visible-body">
+              <div class="cloud-account-card">
+                <div><small>Tài khoản</small><strong id="cloudAccountName">Chưa đăng nhập</strong></div>
+                <div><small>Chi nhánh</small><strong id="cloudBranchName">—</strong></div>
+              </div>
+              <div class="cloud-actions">
+                <button id="cloudSyncNow" class="btn primary" type="button">Đồng bộ ngay</button>
+                <button id="cloudChangePassword" class="btn secondary" type="button">Đổi mật khẩu</button>
+                <button id="cloudLogout" class="btn danger-soft" type="button">Đăng xuất</button>
+              </div>
+              <div id="cloudStatus" class="sync-status cloud-status is-idle"><span class="status-dot"></span><div><strong>Chưa đăng nhập</strong><small>Đăng nhập ở màn hình mở ứng dụng.</small></div></div>
+              <div class="cloud-meta">
+                <span>Phiên bản trên thiết bị: <strong id="cloudLocalRevision">0</strong></span>
+                <span>Phiên bản Cloud: <strong id="cloudRemoteRevision">—</strong></span>
+                <span>Lần đồng bộ cuối: <strong id="cloudLastSync">Chưa đồng bộ</strong></span>
+              </div>
+              <small class="cloud-warning">Dữ liệu luôn lưu trên thiết bị trước. Khi có mạng, ứng dụng tự đồng bộ; nút Đồng bộ ngay chỉ dùng khi cần.</small>
+            </div>
+          </section>
+                  </div>
+        </div>
+      </section>
+
+      <section id="listView" class="view">
+        <div class="section-heading"><div><p class="eyebrow">TRA CỨU</p><h2 id="listTitle">Danh sách</h2></div><button id="backFromList" class="mini-btn" type="button">Quay lại</button></div>
+        <div class="panel-toolbar month-nav"><button id="listMonthPrev" class="mini-btn" type="button">‹</button><label>Tháng<input id="listMonth" type="month" /></label><button id="listMonthNext" class="mini-btn" type="button">›</button><button id="listMonthCurrent" class="mini-btn" type="button">Tháng hiện tại</button></div>
+        <div class="table-card list-table-card"><div class="card-title-row"><h3 id="listSubtitle"></h3><span id="listCount" class="badge"></span></div><div class="table-wrap"><table id="listDataTable"><thead id="listHead"></thead><tbody id="listBody"></tbody><tfoot id="listFoot"></tfoot></table></div></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="settingsHubModal" class="modal hidden settings-hub-modal" role="dialog" aria-modal="true" aria-labelledby="settingsHubTitle">
+    <div class="modal-card settings-hub-card">
+      <div class="settings-hub-head"><div><p class="eyebrow">CÀI ĐẶT</p><h3 id="settingsHubTitle">Tùy chỉnh</h3></div><button id="settingsHubClose" class="icon-btn settings-hub-close" type="button" aria-label="Đóng">×</button></div>
+      <div id="settingsHubMenu" class="settings-subtile-grid hidden"></div>
+      <div id="settingsHubContent" class="settings-hub-content"></div>
+    </div>
+  </div>
+
+  <div id="confirmModal" class="modal hidden" role="dialog" aria-modal="true"><div class="modal-card"><h3 id="confirmTitle">Xác nhận</h3><p id="confirmMessage">Bạn có chắc chắn?</p><div class="button-row"><button id="confirmYes" class="btn primary" type="button">Có</button><button id="confirmNo" class="btn secondary" type="button">Không</button></div></div></div>
+  <div id="unsavedModal" class="modal hidden" role="dialog" aria-modal="true"><div class="modal-card unsaved-modal-card"><h3 id="unsavedTitle">Dữ liệu chưa được lưu</h3><p id="unsavedMessage">Bạn muốn xử lý dữ liệu đang nhập thế nào?</p><div class="button-row three-actions"><button id="unsavedSave" class="btn primary" type="button">Lưu rồi thoát</button><button id="unsavedDiscard" class="btn danger-soft" type="button">Không lưu</button><button id="unsavedCancel" class="btn secondary" type="button">Ở lại</button></div></div></div>
+  <script src="vendor/jszip.min.js"></script>
+  <script src="js/excel-export.js"></script>
+  <script src="js/cloud-sync.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/ui-refresh.js"></script>
+  <script src="js/pwa.js"></script>
+</body>
+</html>
