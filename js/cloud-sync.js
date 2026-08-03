@@ -407,7 +407,7 @@
     return {
       schemaVersion: 1,
       exportedAt: new Date().toISOString(),
-      appVersion: "3.3.2-stable",
+      appVersion: "3.3.3-sync-fix",
       storage,
     };
   }
@@ -625,7 +625,7 @@
     return post({ action: "pull", authToken: auth.authToken, deviceId: getDeviceId() });
   }
 
-  async function autoPush(auth) {
+  async function autoPush(auth, reason = "auto") {
     const baseRevision = getLocalRevision(auth.branchId);
     const payloadData = collectData();
     const result = await post({
@@ -658,7 +658,52 @@
         console.warn("Không đối chiếu được xung đột Cloud:", error);
       }
       if ($("#cloudRemoteRevision")) $("#cloudRemoteRevision").textContent = String(result.cloudRevision || "—");
-      setCloudStatus("warning", "Có dữ liệu mới trên Cloud", "Dữ liệu trên máy vẫn an toàn. Bấm Đồng bộ ngay để kiểm tra.");
+
+      if (reason === "manual") {
+        try {
+          const cloud = await fetchCloudSnapshot(auth);
+          if (!cloud.empty && cloud.data) {
+            if (cloudStorageMatchesLocal(cloud.data)) {
+              setLocalRevision(auth.branchId, cloud.revision);
+              setLastSync(auth.branchId, cloud.updatedAt || new Date().toISOString());
+              setPendingChanges(false);
+              saveBranchCache(auth.branchId);
+              updateSyncUI(auth);
+              setCloudStatus("success", "Đã đồng bộ", formatTime(cloud.updatedAt));
+              markSyncSuccess();
+              return true;
+            }
+
+            const accepted = window.confirm(
+              `Cloud revision ${cloud.revision} mới hơn phiên bản ${baseRevision} trên thiết bị.\n\n` +
+              "Thiết bị cũng đang có thay đổi chưa gửi. Nhấn OK để tải dữ liệu Cloud về. " +
+              "Dữ liệu hiện tại trên thiết bị sẽ được sao lưu trước và không bị mất hoàn toàn.\n\n" +
+              "Nhấn Hủy để giữ nguyên dữ liệu trên thiết bị."
+            );
+
+            if (accepted) {
+              createLocalBackup(`Xung đột trước khi tải Cloud revision ${cloud.revision}`);
+              applyCloudData(cloud.data);
+              setLocalRevision(auth.branchId, cloud.revision);
+              setLastSync(auth.branchId, cloud.updatedAt || new Date().toISOString());
+              setPendingChanges(false);
+              saveBranchCache(auth.branchId);
+              if ($("#cloudRemoteRevision")) $("#cloudRemoteRevision").textContent = String(cloud.revision || 0);
+              setCloudStatus("success", "Đã nhận dữ liệu Cloud", "Ứng dụng đang tải lại dữ liệu mới.");
+              markSyncSuccess();
+              window.setTimeout(() => window.location.reload(), 500);
+              return true;
+            }
+
+            setCloudStatus("warning", "Chưa đồng bộ", "Đã giữ nguyên dữ liệu trên thiết bị; không có dữ liệu nào bị xóa.");
+            return false;
+          }
+        } catch (error) {
+          console.warn("Không tải được dữ liệu Cloud để xử lý xung đột:", error);
+        }
+      }
+
+      setCloudStatus("warning", "Có dữ liệu mới trên Cloud", "Dữ liệu trên thiết bị vẫn an toàn. Bấm Đồng bộ ngay để chọn dữ liệu cần giữ.");
       return false;
     }
 
@@ -692,7 +737,7 @@
     autoSyncRunning = true;
     try {
       if (hasPendingChanges()) {
-        await autoPush(auth);
+        await autoPush(auth, reason);
         return;
       }
 
