@@ -1,7 +1,8 @@
 "use strict";
 
 (() => {
-  const SERVER_URL = "https://script.google.com/macros/s/AKfycbzzIWdvvh6Q33FOWLtpV8UFXmlWG4-03xY2XbLSRKYYb1FZC03W_rWmK_P-1iIX1o9B/exec";
+  const SERVER_URL =
+    "https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnTIdfnpoRFPP3WtbuFo2fgg1o0rXT3oLpnziWLtYyFaQX8syxzU2tm22tguEgHe-GrhIt693Ojt67tIuHcAocUUAn4kpBbtdlwh9tXixy2fd0dAm4JtIE6YNAoe5YmZ_DMa934rw7pHPvmnndHSZQquK86cmWQOcQV5UWIVsJxyv8w2LjzqAmyVDmUW8JNiqseXkTgZA2arKCd9jfhbRYjFIBaDQXxNiRUwnAccY8bGAAvcWzN557iaiD2_QIge0ZEp1Q9CeDMlmq-mDLAhRU6uz5ZgAg&lib=MYnhhqoujSvTM1ntnnrSUs0Zq0LVqQhBG";
   const AUTH_KEY = "bdhs_cloud_auth_v3";
   const USERNAME_KEY = "bdhs_cloud_username_v3";
   const REVISION_PREFIX = "bdhs_cloud_revision_v1_";
@@ -29,7 +30,6 @@
   let busy = false;
   let autoSyncTimer = null;
   let autoSyncRunning = false;
-
 
   function branchCacheKey(branchId) {
     return `${BRANCH_CACHE_PREFIX}${branchId || "UNKNOWN"}`;
@@ -82,7 +82,9 @@
 
     if (current) saveBranchCache(current);
 
-    const hadTargetCache = Boolean(readJson(branchCacheKey(branchId), null)?.storage);
+    const hadTargetCache = Boolean(
+      readJson(branchCacheKey(branchId), null)?.storage,
+    );
     if (hadTargetCache) {
       restoreBranchCache(branchId);
     } else if (current) {
@@ -136,7 +138,8 @@
   }
 
   function deviceName() {
-    const platform = navigator.userAgentData?.platform || navigator.platform || "Thiết bị";
+    const platform =
+      navigator.userAgentData?.platform || navigator.platform || "Thiết bị";
     return `${platform} • ${getDeviceId().slice(0, 8)}`;
   }
 
@@ -149,21 +152,32 @@
   }
 
   function getLocalRevision(branchId) {
-    return Math.max(0, Number(localStorage.getItem(revisionKey(branchId))) || 0);
+    return Math.max(
+      0,
+      Number(localStorage.getItem(revisionKey(branchId))) || 0,
+    );
   }
 
   function setLocalRevision(branchId, revision) {
-    localStorage.setItem(revisionKey(branchId), String(Math.max(0, Number(revision) || 0)));
+    localStorage.setItem(
+      revisionKey(branchId),
+      String(Math.max(0, Number(revision) || 0)),
+    );
   }
 
   function setLastSync(branchId, iso) {
-    localStorage.setItem(lastSyncKey(branchId), iso || new Date().toISOString());
+    localStorage.setItem(
+      lastSyncKey(branchId),
+      iso || new Date().toISOString(),
+    );
   }
 
   function formatTime(iso) {
     if (!iso) return "Chưa đồng bộ";
     const date = new Date(iso);
-    return Number.isNaN(date.getTime()) ? "Chưa đồng bộ" : date.toLocaleString("vi-VN");
+    return Number.isNaN(date.getTime())
+      ? "Chưa đồng bộ"
+      : date.toLocaleString("vi-VN");
   }
 
   async function parseResponse(response) {
@@ -172,10 +186,14 @@
     try {
       json = JSON.parse(text);
     } catch {
-      throw new Error(`Máy chủ trả về nội dung không hợp lệ (${response.status}).`);
+      throw new Error(
+        `Máy chủ trả về nội dung không hợp lệ (${response.status}).`,
+      );
     }
     if (!json.ok && !json.conflict) {
-      const error = new Error(json.message || json.error || "Máy chủ từ chối yêu cầu.");
+      const error = new Error(
+        json.message || json.error || "Máy chủ từ chối yêu cầu.",
+      );
       error.code = json.error || "SERVER_ERROR";
       throw error;
     }
@@ -203,7 +221,8 @@
     $("#authGate")?.classList.remove("hidden");
     document.body.classList.add("auth-locked");
     const remembered = localStorage.getItem(USERNAME_KEY) || "";
-    if ($("#loginUsername") && !$ ("#loginUsername").value) $("#loginUsername").value = remembered;
+    if ($("#loginUsername") && !$("#loginUsername").value)
+      $("#loginUsername").value = remembered;
     setTimeout(() => $("#loginPassword")?.focus(), 50);
   }
 
@@ -214,7 +233,10 @@
 
   function showLoginPanel(panel) {
     ["login", "forgot", "reset"].forEach((name) => {
-      $("#authPanel" + name[0].toUpperCase() + name.slice(1))?.classList.toggle("hidden", name !== panel);
+      $("#authPanel" + name[0].toUpperCase() + name.slice(1))?.classList.toggle(
+        "hidden",
+        name !== panel,
+      );
     });
     setLoginMessage("idle", "");
   }
@@ -227,7 +249,9 @@
   }
 
   async function login() {
-    const username = String($("#loginUsername")?.value || "").trim().toLowerCase();
+    const username = String($("#loginUsername")?.value || "")
+      .trim()
+      .toLowerCase();
     const password = String($("#loginPassword")?.value || "");
     if (!username || !password) throw new Error("Nhập tài khoản và mật khẩu.");
 
@@ -257,15 +281,22 @@
       hideLogin();
       if (Number(result.revision || 0) === 0) setPendingChanges(true);
       scheduleAutoSync(500);
-      setCloudStatus("success", "Đã đăng nhập", `${result.branchName} • Cloud revision ${result.revision || 0}`);
-      if ($("#cloudRemoteRevision")) $("#cloudRemoteRevision").textContent = String(result.revision || 0);
+      setCloudStatus(
+        "success",
+        "Đã đăng nhập",
+        `${result.branchName} • Cloud revision ${result.revision || 0}`,
+      );
+      if ($("#cloudRemoteRevision"))
+        $("#cloudRemoteRevision").textContent = String(result.revision || 0);
     } finally {
       setAuthBusy(false);
     }
   }
 
   async function requestResetCode() {
-    const username = String($("#forgotUsername")?.value || "").trim().toLowerCase();
+    const username = String($("#forgotUsername")?.value || "")
+      .trim()
+      .toLowerCase();
     if (!username) throw new Error("Nhập tài khoản cần khôi phục.");
     setAuthBusy(true);
     setLoginMessage("busy", "Đang gửi mã xác minh...");
@@ -273,20 +304,28 @@
       const result = await post({ action: "forgotPassword", username });
       $("#resetUsername").value = username;
       showLoginPanel("reset");
-      setLoginMessage("success", `Đã gửi mã đến ${result.maskedEmail}. Mã có hiệu lực 10 phút.`);
+      setLoginMessage(
+        "success",
+        `Đã gửi mã đến ${result.maskedEmail}. Mã có hiệu lực 10 phút.`,
+      );
     } finally {
       setAuthBusy(false);
     }
   }
 
   async function resetPassword() {
-    const username = String($("#resetUsername")?.value || "").trim().toLowerCase();
+    const username = String($("#resetUsername")?.value || "")
+      .trim()
+      .toLowerCase();
     const code = String($("#resetCode")?.value || "").trim();
     const newPassword = String($("#resetPassword")?.value || "");
     const confirmPassword = String($("#resetPasswordConfirm")?.value || "");
-    if (!username || !code) throw new Error("Thiếu tài khoản hoặc mã xác minh.");
-    if (newPassword.length < 8) throw new Error("Mật khẩu mới phải có ít nhất 8 ký tự.");
-    if (newPassword !== confirmPassword) throw new Error("Hai mật khẩu mới chưa trùng nhau.");
+    if (!username || !code)
+      throw new Error("Thiếu tài khoản hoặc mã xác minh.");
+    if (newPassword.length < 8)
+      throw new Error("Mật khẩu mới phải có ít nhất 8 ký tự.");
+    if (newPassword !== confirmPassword)
+      throw new Error("Hai mật khẩu mới chưa trùng nhau.");
 
     setAuthBusy(true);
     setLoginMessage("busy", "Đang đặt lại mật khẩu...");
@@ -304,18 +343,32 @@
   async function validateSession(auth) {
     if (!auth?.authToken) return false;
     if (!navigator.onLine) {
-      setCloudStatus("warning", "Đang dùng ngoại tuyến", "Phiên đăng nhập đã được ghi nhớ trên thiết bị.");
+      setCloudStatus(
+        "warning",
+        "Đang dùng ngoại tuyến",
+        "Phiên đăng nhập đã được ghi nhớ trên thiết bị.",
+      );
       return true;
     }
     try {
-      const result = await post({ action: "session", authToken: auth.authToken, deviceId: getDeviceId() });
+      const result = await post({
+        action: "session",
+        authToken: auth.authToken,
+        deviceId: getDeviceId(),
+      });
       const branchChanged = ensureBranchContext(result.branchId);
-      saveAuth({ ...auth, branchId: result.branchId, branchName: result.branchName, expiresAt: result.expiresAt });
+      saveAuth({
+        ...auth,
+        branchId: result.branchId,
+        branchName: result.branchName,
+        expiresAt: result.expiresAt,
+      });
       if (branchChanged) {
         window.location.reload();
         return true;
       }
-      if ($("#cloudRemoteRevision")) $("#cloudRemoteRevision").textContent = String(result.revision || 0);
+      if ($("#cloudRemoteRevision"))
+        $("#cloudRemoteRevision").textContent = String(result.revision || 0);
       return true;
     } catch (error) {
       console.warn("Không kiểm tra được phiên đăng nhập:", error);
@@ -323,7 +376,11 @@
         clearAuth();
         return false;
       }
-      setCloudStatus("warning", "Chưa kết nối Cloud", "Ứng dụng vẫn dùng dữ liệu trên thiết bị và sẽ tự thử lại.");
+      setCloudStatus(
+        "warning",
+        "Chưa kết nối Cloud",
+        "Ứng dụng vẫn dùng dữ liệu trên thiết bị và sẽ tự thử lại.",
+      );
       return true;
     }
   }
@@ -343,15 +400,27 @@
   }
 
   function validateCloudData(data) {
-    if (!data || typeof data !== "object" || !data.storage || typeof data.storage !== "object") {
+    if (
+      !data ||
+      typeof data !== "object" ||
+      !data.storage ||
+      typeof data.storage !== "object"
+    ) {
       throw new Error("Dữ liệu Cloud không đúng cấu trúc BDHS.");
     }
-    const recognized = DATA_KEYS.some((key) => Object.prototype.hasOwnProperty.call(data.storage, key));
-    if (!recognized) throw new Error("Dữ liệu Cloud không chứa dữ liệu BDHS hợp lệ.");
+    const recognized = DATA_KEYS.some((key) =>
+      Object.prototype.hasOwnProperty.call(data.storage, key),
+    );
+    if (!recognized)
+      throw new Error("Dữ liệu Cloud không chứa dữ liệu BDHS hợp lệ.");
   }
 
   function createLocalBackup(reason) {
-    const backup = { reason, createdAt: new Date().toISOString(), data: collectData() };
+    const backup = {
+      reason,
+      createdAt: new Date().toISOString(),
+      data: collectData(),
+    };
     const auth = getAuth();
     writeJson(prePullBackupKey(auth?.branchId), backup);
     return backup;
@@ -388,29 +457,64 @@
 
   function setBusy(value, message = "Đang xử lý...") {
     busy = value;
-    ["#cloudPush", "#cloudPull", "#cloudLogout", "#cloudChangePassword"].forEach((selector) => {
+    [
+      "#cloudPush",
+      "#cloudPull",
+      "#cloudLogout",
+      "#cloudChangePassword",
+    ].forEach((selector) => {
       const button = $(selector);
       if (button) button.disabled = value;
     });
-    if (value) setCloudStatus("busy", message, "Không đóng trang trong lúc đồng bộ.");
+    if (value)
+      setCloudStatus("busy", message, "Không đóng trang trong lúc đồng bộ.");
   }
 
   function updateSyncUI(auth = getAuth()) {
     const connected = Boolean(auth?.authToken);
-    if ($("#cloudAccountName")) $("#cloudAccountName").textContent = connected ? auth.username : "Chưa đăng nhập";
-    if ($("#cloudBranchName")) $("#cloudBranchName").textContent = connected ? auth.branchName : "—";
-    if ($("#cloudLocalRevision")) $("#cloudLocalRevision").textContent = connected ? String(getLocalRevision(auth.branchId)) : "0";
-    if ($("#cloudLastSync")) $("#cloudLastSync").textContent = connected ? formatTime(localStorage.getItem(lastSyncKey(auth.branchId))) : "Chưa đồng bộ";
-    ["#cloudPush", "#cloudPull", "#cloudLogout", "#cloudChangePassword"].forEach((selector) => {
+    if ($("#cloudAccountName"))
+      $("#cloudAccountName").textContent = connected
+        ? auth.username
+        : "Chưa đăng nhập";
+    if ($("#cloudBranchName"))
+      $("#cloudBranchName").textContent = connected ? auth.branchName : "—";
+    if ($("#cloudLocalRevision"))
+      $("#cloudLocalRevision").textContent = connected
+        ? String(getLocalRevision(auth.branchId))
+        : "0";
+    if ($("#cloudLastSync"))
+      $("#cloudLastSync").textContent = connected
+        ? formatTime(localStorage.getItem(lastSyncKey(auth.branchId)))
+        : "Chưa đồng bộ";
+    [
+      "#cloudPush",
+      "#cloudPull",
+      "#cloudLogout",
+      "#cloudChangePassword",
+    ].forEach((selector) => {
       const el = $(selector);
       if (el) el.disabled = !connected;
     });
     if (connected) {
-      if (!navigator.onLine) setCloudStatus("warning", "Đang dùng ngoại tuyến", "Dữ liệu vẫn được lưu trên thiết bị.");
-      else if (hasPendingChanges()) setCloudStatus("warning", "Chờ đồng bộ", "Ứng dụng sẽ tự gửi dữ liệu lên Cloud.");
+      if (!navigator.onLine)
+        setCloudStatus(
+          "warning",
+          "Đang dùng ngoại tuyến",
+          "Dữ liệu vẫn được lưu trên thiết bị.",
+        );
+      else if (hasPendingChanges())
+        setCloudStatus(
+          "warning",
+          "Chờ đồng bộ",
+          "Ứng dụng sẽ tự gửi dữ liệu lên Cloud.",
+        );
       else setCloudStatus("success", "Đã kết nối", auth.branchName);
-    }
-    else setCloudStatus("idle", "Chưa đăng nhập", "Đăng nhập ở màn hình mở ứng dụng.");
+    } else
+      setCloudStatus(
+        "idle",
+        "Chưa đăng nhập",
+        "Đăng nhập ở màn hình mở ứng dụng.",
+      );
   }
 
   async function pushData() {
@@ -418,7 +522,10 @@
     const baseRevision = getLocalRevision(auth.branchId);
     const payloadData = collectData();
     const size = new Blob([JSON.stringify(payloadData)]).size;
-    if (size > 7.5 * 1024 * 1024) throw new Error("Dữ liệu gần vượt giới hạn Cloud 8 MB. Hãy giảm dung lượng hình nền.");
+    if (size > 7.5 * 1024 * 1024)
+      throw new Error(
+        "Dữ liệu gần vượt giới hạn Cloud 8 MB. Hãy giảm dung lượng hình nền.",
+      );
 
     setBusy(true, "Đang tải dữ liệu lên Cloud...");
     try {
@@ -432,15 +539,27 @@
         data: payloadData,
       });
       if (result.conflict) {
-        if ($("#cloudRemoteRevision")) $("#cloudRemoteRevision").textContent = String(result.cloudRevision || "—");
-        setCloudStatus("warning", "Cloud có dữ liệu mới hơn", "Hãy tải xuống trước, kiểm tra dữ liệu rồi tải lên lại.");
+        if ($("#cloudRemoteRevision"))
+          $("#cloudRemoteRevision").textContent = String(
+            result.cloudRevision || "—",
+          );
+        setCloudStatus(
+          "warning",
+          "Cloud có dữ liệu mới hơn",
+          "Hãy tải xuống trước, kiểm tra dữ liệu rồi tải lên lại.",
+        );
         return;
       }
       setLocalRevision(auth.branchId, result.revision);
       setLastSync(auth.branchId, result.updatedAt);
-      if ($("#cloudRemoteRevision")) $("#cloudRemoteRevision").textContent = String(result.revision);
+      if ($("#cloudRemoteRevision"))
+        $("#cloudRemoteRevision").textContent = String(result.revision);
       updateSyncUI(auth);
-      setCloudStatus("success", "Đã tải lên Cloud", `Revision ${result.revision} • ${formatTime(result.updatedAt)}`);
+      setCloudStatus(
+        "success",
+        "Đã tải lên Cloud",
+        `Revision ${result.revision} • ${formatTime(result.updatedAt)}`,
+      );
     } finally {
       setBusy(false);
     }
@@ -455,21 +574,36 @@
         authToken: auth.authToken,
         deviceId: getDeviceId(),
       });
-      if ($("#cloudRemoteRevision")) $("#cloudRemoteRevision").textContent = String(result.revision || 0);
+      if ($("#cloudRemoteRevision"))
+        $("#cloudRemoteRevision").textContent = String(result.revision || 0);
       if (result.empty || !result.data) {
-        setCloudStatus("warning", "Cloud chưa có dữ liệu", "Hãy dùng thiết bị đang có dữ liệu và bấm Tải lên Cloud trước.");
+        setCloudStatus(
+          "warning",
+          "Cloud chưa có dữ liệu",
+          "Hãy dùng thiết bị đang có dữ liệu và bấm Tải lên Cloud trước.",
+        );
         return;
       }
-      const accepted = window.confirm(`Tải revision ${result.revision} từ Cloud về?\n\nDữ liệu hiện tại sẽ được sao lưu cục bộ rồi thay thế.`);
+      const accepted = window.confirm(
+        `Tải revision ${result.revision} từ Cloud về?\n\nDữ liệu hiện tại sẽ được sao lưu cục bộ rồi thay thế.`,
+      );
       if (!accepted) {
-        setCloudStatus("idle", "Đã hủy tải xuống", "Dữ liệu trên thiết bị không thay đổi.");
+        setCloudStatus(
+          "idle",
+          "Đã hủy tải xuống",
+          "Dữ liệu trên thiết bị không thay đổi.",
+        );
         return;
       }
       createLocalBackup(`Trước khi tải Cloud revision ${result.revision}`);
       applyCloudData(result.data);
       setLocalRevision(auth.branchId, result.revision);
       setLastSync(auth.branchId, result.updatedAt || new Date().toISOString());
-      setCloudStatus("success", "Tải xuống thành công", "Ứng dụng sẽ tải lại để áp dụng dữ liệu Cloud.");
+      setCloudStatus(
+        "success",
+        "Tải xuống thành công",
+        "Ứng dụng sẽ tải lại để áp dụng dữ liệu Cloud.",
+      );
       window.setTimeout(() => window.location.reload(), 700);
     } finally {
       setBusy(false);
@@ -496,7 +630,11 @@
   }
 
   async function fetchCloudSnapshot(auth) {
-    return post({ action: "pull", authToken: auth.authToken, deviceId: getDeviceId() });
+    return post({
+      action: "pull",
+      authToken: auth.authToken,
+      deviceId: getDeviceId(),
+    });
   }
 
   async function autoPush(auth) {
@@ -512,14 +650,22 @@
       data: payloadData,
     });
     if (result.conflict) {
-      if ($("#cloudRemoteRevision")) $("#cloudRemoteRevision").textContent = String(result.cloudRevision || "—");
-      setCloudStatus("warning", "Có dữ liệu mới trên Cloud", "Dữ liệu trên máy vẫn an toàn. Bấm Đồng bộ ngay để kiểm tra.");
+      if ($("#cloudRemoteRevision"))
+        $("#cloudRemoteRevision").textContent = String(
+          result.cloudRevision || "—",
+        );
+      setCloudStatus(
+        "warning",
+        "Có dữ liệu mới trên Cloud",
+        "Dữ liệu trên máy vẫn an toàn. Bấm Đồng bộ ngay để kiểm tra.",
+      );
       return false;
     }
     setLocalRevision(auth.branchId, result.revision);
     setLastSync(auth.branchId, result.updatedAt || new Date().toISOString());
     setPendingChanges(false);
-    if ($("#cloudRemoteRevision")) $("#cloudRemoteRevision").textContent = String(result.revision || 0);
+    if ($("#cloudRemoteRevision"))
+      $("#cloudRemoteRevision").textContent = String(result.revision || 0);
     updateSyncUI(auth);
     setCloudStatus("success", "Đã đồng bộ", formatTime(result.updatedAt));
     return true;
@@ -530,7 +676,11 @@
     const auth = getAuth();
     if (!auth?.authToken) return;
     if (!navigator.onLine) {
-      setCloudStatus("warning", "Đã lưu trên thiết bị", "Sẽ tự đồng bộ khi có Internet.");
+      setCloudStatus(
+        "warning",
+        "Đã lưu trên thiết bị",
+        "Sẽ tự đồng bộ khi có Internet.",
+      );
       return;
     }
     autoSyncRunning = true;
@@ -540,27 +690,46 @@
         return;
       }
       const cloud = await fetchCloudSnapshot(auth);
-      if ($("#cloudRemoteRevision")) $("#cloudRemoteRevision").textContent = String(cloud.revision || 0);
+      if ($("#cloudRemoteRevision"))
+        $("#cloudRemoteRevision").textContent = String(cloud.revision || 0);
       const localRevision = getLocalRevision(auth.branchId);
-      if (!cloud.empty && cloud.data && Number(cloud.revision || 0) > localRevision) {
+      if (
+        !cloud.empty &&
+        cloud.data &&
+        Number(cloud.revision || 0) > localRevision
+      ) {
         createLocalBackup(`Tự động nhận Cloud revision ${cloud.revision}`);
         applyCloudData(cloud.data);
         setLocalRevision(auth.branchId, cloud.revision);
         setLastSync(auth.branchId, cloud.updatedAt || new Date().toISOString());
-        setCloudStatus("success", "Đã cập nhật dữ liệu mới", "Ứng dụng đang áp dụng dữ liệu Cloud.");
+        setCloudStatus(
+          "success",
+          "Đã cập nhật dữ liệu mới",
+          "Ứng dụng đang áp dụng dữ liệu Cloud.",
+        );
         window.setTimeout(() => window.location.reload(), 400);
         return;
       }
       setLastSync(auth.branchId, new Date().toISOString());
       updateSyncUI(auth);
-      setCloudStatus("success", "Dữ liệu đã cập nhật", reason === "manual" ? "Đồng bộ thủ công hoàn tất." : "Cloud và thiết bị đang cùng phiên bản.");
+      setCloudStatus(
+        "success",
+        "Dữ liệu đã cập nhật",
+        reason === "manual"
+          ? "Đồng bộ thủ công hoàn tất."
+          : "Cloud và thiết bị đang cùng phiên bản.",
+      );
     } catch (error) {
       console.warn("Auto sync chưa hoàn tất:", error);
       if (error.code === "AUTH_EXPIRED" || error.code === "AUTH_FAILED") {
         clearAuth();
         showLogin();
       } else {
-        setCloudStatus("warning", "Đã lưu trên thiết bị", "Cloud chưa truy cập được; ứng dụng sẽ tự thử lại khi có mạng.");
+        setCloudStatus(
+          "warning",
+          "Đã lưu trên thiết bị",
+          "Cloud chưa truy cập được; ứng dụng sẽ tự thử lại khi có mạng.",
+        );
       }
     } finally {
       autoSyncRunning = false;
@@ -573,9 +742,11 @@
     if (currentPassword === null) return;
     const newPassword = window.prompt("Nhập mật khẩu mới (ít nhất 8 ký tự):");
     if (newPassword === null) return;
-    if (newPassword.length < 8) throw new Error("Mật khẩu mới phải có ít nhất 8 ký tự.");
+    if (newPassword.length < 8)
+      throw new Error("Mật khẩu mới phải có ít nhất 8 ký tự.");
     const confirmPassword = window.prompt("Nhập lại mật khẩu mới:");
-    if (confirmPassword !== newPassword) throw new Error("Hai mật khẩu mới chưa trùng nhau.");
+    if (confirmPassword !== newPassword)
+      throw new Error("Hai mật khẩu mới chưa trùng nhau.");
 
     setBusy(true, "Đang đổi mật khẩu...");
     try {
@@ -595,7 +766,12 @@
   }
 
   function logout() {
-    if (!window.confirm("Đăng xuất khỏi chi nhánh này? Dữ liệu riêng của chi nhánh vẫn được giữ trên thiết bị.")) return;
+    if (
+      !window.confirm(
+        "Đăng xuất khỏi chi nhánh này? Dữ liệu riêng của chi nhánh vẫn được giữ trên thiết bị.",
+      )
+    )
+      return;
     const auth = getAuth();
     if (auth?.branchId) saveBranchCache(auth.branchId);
     clearDataKeys();
@@ -610,13 +786,18 @@
       await task();
     } catch (error) {
       console.error(error);
-      if (loginContext) setLoginMessage("error", error.message || "Lỗi không xác định.");
+      if (loginContext)
+        setLoginMessage("error", error.message || "Lỗi không xác định.");
       else {
         if (error.code === "AUTH_EXPIRED" || error.code === "AUTH_FAILED") {
           clearAuth();
           showLogin();
         }
-        setCloudStatus("error", "Thao tác thất bại", error.message || "Lỗi không xác định.");
+        setCloudStatus(
+          "error",
+          "Thao tác thất bại",
+          error.message || "Lỗi không xác định.",
+        );
         setBusy(false);
       }
     }
@@ -625,33 +806,52 @@
   function bind() {
     $("#loginSubmit")?.addEventListener("click", () => run(login, true));
     $("#toggleLoginPassword")?.addEventListener("click", () => {
-      const input=$("#loginPassword");
-      if(!input)return;
-      input.type=input.type==="password"?"text":"password";
-      $("#toggleLoginPassword").setAttribute("aria-label",input.type==="password"?"Hiện mật khẩu":"Ẩn mật khẩu");
+      const input = $("#loginPassword");
+      if (!input) return;
+      input.type = input.type === "password" ? "text" : "password";
+      $("#toggleLoginPassword").setAttribute(
+        "aria-label",
+        input.type === "password" ? "Hiện mật khẩu" : "Ẩn mật khẩu",
+      );
     });
-    document.querySelectorAll(".auth-quick-login").forEach(button=>button.addEventListener("click",()=>{
-      const input=$("#loginUsername");
-      if(input){input.value=button.dataset.username||"";input.focus();}
-      $("#loginPassword")?.focus();
-    }));
+    document.querySelectorAll(".auth-quick-login").forEach((button) =>
+      button.addEventListener("click", () => {
+        const input = $("#loginUsername");
+        if (input) {
+          input.value = button.dataset.username || "";
+          input.focus();
+        }
+        $("#loginPassword")?.focus();
+      }),
+    );
     $("#loginPassword")?.addEventListener("keydown", (event) => {
       if (event.key === "Enter") run(login, true);
     });
     $("#showForgotPassword")?.addEventListener("click", () => {
-      $("#forgotUsername").value = $("#loginUsername").value || localStorage.getItem(USERNAME_KEY) || "";
+      $("#forgotUsername").value =
+        $("#loginUsername").value || localStorage.getItem(USERNAME_KEY) || "";
       showLoginPanel("forgot");
     });
-    $("#backToLoginFromForgot")?.addEventListener("click", () => showLoginPanel("login"));
-    $("#backToLoginFromReset")?.addEventListener("click", () => showLoginPanel("login"));
-    $("#forgotSend")?.addEventListener("click", () => run(requestResetCode, true));
-    $("#resetSubmit")?.addEventListener("click", () => run(resetPassword, true));
+    $("#backToLoginFromForgot")?.addEventListener("click", () =>
+      showLoginPanel("login"),
+    );
+    $("#backToLoginFromReset")?.addEventListener("click", () =>
+      showLoginPanel("login"),
+    );
+    $("#forgotSend")?.addEventListener("click", () =>
+      run(requestResetCode, true),
+    );
+    $("#resetSubmit")?.addEventListener("click", () =>
+      run(resetPassword, true),
+    );
 
     $("#cloudPush")?.addEventListener("click", () => run(pushData));
     $("#cloudPull")?.addEventListener("click", () => run(pullData));
     $("#cloudSyncNow")?.addEventListener("click", () => runAutoSync("manual"));
     $("#cloudLogout")?.addEventListener("click", logout);
-    $("#cloudChangePassword")?.addEventListener("click", () => run(changePassword));
+    $("#cloudChangePassword")?.addEventListener("click", () =>
+      run(changePassword),
+    );
 
     window.addEventListener("bdhs:data-saved", () => {
       const auth = getAuth();
@@ -663,7 +863,8 @@
     window.addEventListener("online", () => scheduleAutoSync(800));
     window.addEventListener("offline", () => updateSyncUI());
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "hidden" && hasPendingChanges()) scheduleAutoSync(100);
+      if (document.visibilityState === "hidden" && hasPendingChanges())
+        scheduleAutoSync(100);
     });
     updateSyncUI();
   }
@@ -674,7 +875,11 @@
     if (auth?.branchId) ensureBranchContext(auth.branchId);
     if (!auth?.authToken) {
       showLogin();
-      if (!navigator.onLine) setLoginMessage("warning", "Lần đăng nhập đầu tiên cần có Internet. Sau khi đăng nhập thành công, ứng dụng vẫn dùng được khi mất mạng.");
+      if (!navigator.onLine)
+        setLoginMessage(
+          "warning",
+          "Lần đăng nhập đầu tiên cần có Internet. Sau khi đăng nhập thành công, ứng dụng vẫn dùng được khi mất mạng.",
+        );
       return;
     }
     setLoginMessage("busy", "Đang kiểm tra phiên đăng nhập...");
@@ -686,5 +891,10 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => run(boot, true));
-  window.BDHSCloudSync = { collectData, createLocalBackup, showLogin, syncNow: () => runAutoSync("manual") };
+  window.BDHSCloudSync = {
+    collectData,
+    createLocalBackup,
+    showLogin,
+    syncNow: () => runAutoSync("manual"),
+  };
 })();
