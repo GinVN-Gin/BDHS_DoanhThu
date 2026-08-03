@@ -11,6 +11,8 @@
   const ACTIVE_BRANCH_KEY = "bdhs_active_branch_v1";
   const DEVICE_ID_KEY = "bdhs_cloud_device_id_v1";
   const PENDING_PREFIX = "bdhs_cloud_pending_v1_";
+  const TOMBSTONES_KEY = "bdhs_sync_tombstones_v1";
+  const KEY_META_KEY = "bdhs_sync_key_meta_v1";
   const AUTO_SYNC_DELAY = 1800;
   const REQUEST_TIMEOUT = 15000;
   const CLOUD_POLL_INTERVAL = 30000;
@@ -28,6 +30,8 @@
     "bdhs_buyer_profile_v1",
     "bdhs_inventories_v2",
     "bdhs_inventory_catalog_v2",
+    TOMBSTONES_KEY,
+    KEY_META_KEY,
   ]);
 
   const $ = (selector) => document.querySelector(selector);
@@ -39,6 +43,7 @@
   let syncFailureCount = 0;
   let syncPausedUntil = 0;
   let syncQueued = false;
+  let localChangeVersion = 0;
 
 
   function branchCacheKey(branchId) {
@@ -407,7 +412,7 @@
     return {
       schemaVersion: 1,
       exportedAt: new Date().toISOString(),
-      appVersion: "3.3.3-sync-fix",
+      appVersion: "3.3.4-conflict-safe",
       storage,
     };
   }
@@ -485,34 +490,10 @@
 
   async function pushData() {
     const auth = requireAuth();
-    const baseRevision = getLocalRevision(auth.branchId);
-    const payloadData = collectData();
-    const size = new Blob([JSON.stringify(payloadData)]).size;
-    if (size > 7.5 * 1024 * 1024) throw new Error("Dữ liệu gần vượt giới hạn Cloud 8 MB. Hãy giảm dung lượng hình nền.");
-
-    setBusy(true, "Đang tải dữ liệu lên Cloud...");
+    setBusy(true, "Đang hợp nhất và tải dữ liệu lên Cloud...");
     try {
-      const result = await post({
-        action: "push",
-        authToken: auth.authToken,
-        deviceId: getDeviceId(),
-        deviceName: deviceName(),
-        baseRevision,
-        force: false,
-        data: payloadData,
-      });
-      if (result.conflict) {
-        if ($("#cloudRemoteRevision")) $("#cloudRemoteRevision").textContent = String(result.cloudRevision || "—");
-        setCloudStatus("warning", "Cloud có dữ liệu mới hơn", "Hãy tải xuống trước, kiểm tra dữ liệu rồi tải lên lại.");
-        return;
-      }
-      setLocalRevision(auth.branchId, result.revision);
-      setLastSync(auth.branchId, result.updatedAt);
-      setPendingChanges(false);
-      saveBranchCache(auth.branchId);
-      if ($("#cloudRemoteRevision")) $("#cloudRemoteRevision").textContent = String(result.revision);
-      updateSyncUI(auth);
-      setCloudStatus("success", "Đã tải lên Cloud", `Revision ${result.revision} • ${formatTime(result.updatedAt)}`);
+      const outcome = await pushWithConflictMerge(auth, "manual");
+      finishSuccessfulPush(auth, outcome, "Đã đồng bộ Cloud");
     } finally {
       setBusy(false);
     }
@@ -621,101 +602,291 @@
     });
   }
 
+  function parseStorageJson(storage, key, fallback) {
+    try {
+      const raw = storage && Object.prototype.hasOwnProperty.call(storage, key) ? storage[key] : null;
+      return raw == null ? fallback : JSON.parse(String(raw));
+    } catch {
+      return fallback;
+    }
+  }
+
+  function timeValue(value) {
+    const time = Date.parse(String(value || ""));
+    return Number.isFinite(time) ? time : 0;
+  }
+
+  function latestIso(a, b) {
+    return timeValue(a) >= timeValue(b) ? a : b;
+  }
+
+  function mergeTimestampMaps(localMap, cloudMap) {
+    const merged = { ...(cloudMap || {}) };
+    for (const [key, value] of Object.entries(localMap || {})) {
+      if (!merged[key] || timeValue(value) > timeValue(merged[key])) merged[key] = value;
+    }
+    return merged;
+  }
+
+  function mergeTombstoneMaps(localMap, cloudMap) {
+    const merged = {};
+    const collections = new Set([...Object.keys(localMap || {}), ...Object.keys(cloudMap || {})]);
+    for (const collection of collections) {
+      const records = mergeTimestampMaps(localMap?.[collection], cloudMap?.[collection]);
+      if (Object.keys(records).length) merged[collection] = records;
+    }
+    return merged;
+  }
+
+  function recordIdForKey(key, row) {
+    if (key === "bdhs_revenues_v1") return String(row?.date || "");
+    if (key === "bdhs_purchases_v1" || key === "bdhs_mtf_orders_v1") return String(row?.id || "");
+    if (key === "bdhs_inventories_v2") return String(row?.month || "");
+    return "";
+  }
+
+  function recordTime(row) {
+    return Math.max(timeValue(row?.updatedAt), timeValue(row?.createdAt));
+  }
+
+  function mergeRecordCollection(key, localRows, cloudRows, localMeta, cloudMeta, tombstones) {
+    const localById = new Map((Array.isArray(localRows) ? localRows : []).map((row) => [recordIdForKey(key, row), row]).filter(([id]) => id));
+    const cloudById = new Map((Array.isArray(cloudRows) ? cloudRows : []).map((row) => [recordIdForKey(key, row), row]).filter(([id]) => id));
+    const ids = new Set([...localById.keys(), ...cloudById.keys(), ...Object.keys(tombstones?.[key] || {})]);
+    const merged = [];
+
+    for (const id of ids) {
+      const localRow = localById.get(id);
+      const cloudRow = cloudById.get(id);
+      const localTime = recordTime(localRow);
+      const cloudTime = recordTime(cloudRow);
+      const chosen = localRow && (!cloudRow || localTime > cloudTime) ? localRow : cloudRow;
+      const chosenTime = Math.max(localTime, cloudTime);
+      const deletedAt = timeValue(tombstones?.[key]?.[id]);
+      if (chosen && deletedAt < chosenTime) merged.push(chosen);
+    }
+    return merged;
+  }
+
+  function mergeStringLists(localValue, cloudValue) {
+    const merged = [];
+    const seen = new Set();
+    for (const value of [...(Array.isArray(cloudValue) ? cloudValue : []), ...(Array.isArray(localValue) ? localValue : [])]) {
+      const text = String(value || "").trim();
+      const identity = text.toLocaleLowerCase("vi-VN");
+      if (text && !seen.has(identity)) {
+        seen.add(identity);
+        merged.push(text);
+      }
+    }
+    return merged.sort((a, b) => a.localeCompare(b, "vi"));
+  }
+
+  function chooseWholeStorageValue(key, localStorageData, cloudStorageData, localMeta, cloudMeta, localExportedAt, cloudExportedAt) {
+    const localHas = Object.prototype.hasOwnProperty.call(localStorageData || {}, key);
+    const cloudHas = Object.prototype.hasOwnProperty.call(cloudStorageData || {}, key);
+    if (!localHas) return cloudHas ? cloudStorageData[key] : null;
+    if (!cloudHas) return localStorageData[key];
+    if (String(localStorageData[key]) === String(cloudStorageData[key])) return localStorageData[key];
+    const localTime = timeValue(localMeta?.[key]);
+    const cloudTime = timeValue(cloudMeta?.[key]);
+    if (!localTime && !cloudTime) return cloudStorageData[key];
+    return localTime >= cloudTime ? localStorageData[key] : cloudStorageData[key];
+  }
+
+  function resolveDuplicateOrderCodes(orders, purchases) {
+    const orderRows = Array.isArray(orders) ? orders.map((row) => ({ ...row })) : [];
+    const purchaseRows = Array.isArray(purchases) ? purchases.map((row) => ({ ...row })) : [];
+    const nextByBase = new Map();
+    for (const order of orderRows) {
+      const match = String(order.code || "").match(/^(.*_\d{4}_\d{2}_)(\d+)$/);
+      if (!match) continue;
+      nextByBase.set(match[1], Math.max(nextByBase.get(match[1]) || 0, Number(match[2]) || 0));
+    }
+
+    const used = new Set();
+    let changed = false;
+    orderRows.sort((a, b) => String(a.createdAt || a.updatedAt || a.id || "").localeCompare(String(b.createdAt || b.updatedAt || b.id || "")));
+    for (const order of orderRows) {
+      const oldCode = String(order.code || "");
+      if (!oldCode || !used.has(oldCode)) {
+        if (oldCode) used.add(oldCode);
+        continue;
+      }
+      const match = oldCode.match(/^(.*_\d{4}_\d{2}_)(\d+)$/);
+      if (!match) continue;
+      const base = match[1];
+      let next = nextByBase.get(base) || 0;
+      let newCode;
+      do {
+        next += 1;
+        newCode = `${base}${String(next).padStart(3, "0")}`;
+      } while (used.has(newCode));
+      nextByBase.set(base, next);
+      used.add(newCode);
+      order.code = newCode;
+      order.updatedAt = new Date().toISOString();
+      for (const purchase of purchaseRows) {
+        if (purchase.orderId !== order.id) continue;
+        purchase.orderCode = newCode;
+        purchase.content = String(purchase.content || "").includes(oldCode)
+          ? String(purchase.content).replace(oldCode, newCode)
+          : `${purchase.purchaseType === "MTF_VAT" ? "MTF VAT" : "MTF"} · ${newCode}`;
+        purchase.updatedAt = order.updatedAt;
+      }
+      changed = true;
+    }
+    return { orders: orderRows, purchases: purchaseRows, changed };
+  }
+
+  function mergeDataSnapshots(localData, cloudData) {
+    const localStorageData = localData?.storage || {};
+    const cloudStorageData = cloudData?.storage || {};
+    const localMeta = parseStorageJson(localStorageData, KEY_META_KEY, {});
+    const cloudMeta = parseStorageJson(cloudStorageData, KEY_META_KEY, {});
+    const mergedMeta = mergeTimestampMaps(localMeta, cloudMeta);
+    const localTombstones = parseStorageJson(localStorageData, TOMBSTONES_KEY, {});
+    const cloudTombstones = parseStorageJson(cloudStorageData, TOMBSTONES_KEY, {});
+    const mergedTombstones = mergeTombstoneMaps(localTombstones, cloudTombstones);
+    const mergedStorage = {};
+    const recordKeys = new Set(["bdhs_revenues_v1", "bdhs_purchases_v1", "bdhs_mtf_orders_v1", "bdhs_inventories_v2"]);
+
+    for (const key of DATA_KEYS) {
+      if (key === KEY_META_KEY || key === TOMBSTONES_KEY) continue;
+      if (recordKeys.has(key)) {
+        const localRows = parseStorageJson(localStorageData, key, []);
+        const cloudRows = parseStorageJson(cloudStorageData, key, []);
+        mergedStorage[key] = JSON.stringify(mergeRecordCollection(key, localRows, cloudRows, localMeta, cloudMeta, mergedTombstones));
+        continue;
+      }
+      if (key === "bdhs_purchase_contents_v1") {
+        mergedStorage[key] = JSON.stringify(mergeStringLists(
+          parseStorageJson(localStorageData, key, []),
+          parseStorageJson(cloudStorageData, key, []),
+        ));
+        continue;
+      }
+      const value = chooseWholeStorageValue(
+        key,
+        localStorageData,
+        cloudStorageData,
+        localMeta,
+        cloudMeta,
+        localData?.exportedAt,
+        cloudData?.exportedAt,
+      );
+      if (value !== null) mergedStorage[key] = String(value);
+    }
+
+    const normalizedOrders = resolveDuplicateOrderCodes(
+      parseStorageJson(mergedStorage, "bdhs_mtf_orders_v1", []),
+      parseStorageJson(mergedStorage, "bdhs_purchases_v1", []),
+    );
+    if (normalizedOrders.changed) {
+      const normalizedAt = new Date().toISOString();
+      mergedStorage["bdhs_mtf_orders_v1"] = JSON.stringify(normalizedOrders.orders);
+      mergedStorage["bdhs_purchases_v1"] = JSON.stringify(normalizedOrders.purchases);
+      mergedMeta["bdhs_mtf_orders_v1"] = normalizedAt;
+      mergedMeta["bdhs_purchases_v1"] = normalizedAt;
+    }
+    mergedStorage[KEY_META_KEY] = JSON.stringify(mergedMeta);
+    mergedStorage[TOMBSTONES_KEY] = JSON.stringify(mergedTombstones);
+    return {
+      schemaVersion: 1,
+      exportedAt: new Date().toISOString(),
+      appVersion: "3.3.4-conflict-safe",
+      storage: mergedStorage,
+    };
+  }
+
+  function storageSnapshotsMatch(a, b) {
+    const aStorage = a?.storage || {};
+    const bStorage = b?.storage || {};
+    return DATA_KEYS.every((key) => {
+      const aHas = Object.prototype.hasOwnProperty.call(aStorage, key);
+      const bHas = Object.prototype.hasOwnProperty.call(bStorage, key);
+      return aHas === bHas && (!aHas || String(aStorage[key]) === String(bStorage[key]));
+    });
+  }
+
+  async function pushWithConflictMerge(auth, reason = "auto") {
+    let payload = collectData();
+    let baseRevision = getLocalRevision(auth.branchId);
+    let sentChangeVersion = localChangeVersion;
+    let didMerge = false;
+    let backupCreated = false;
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      sentChangeVersion = localChangeVersion;
+      const result = await post({
+        action: "push",
+        authToken: auth.authToken,
+        deviceId: getDeviceId(),
+        deviceName: deviceName(),
+        baseRevision,
+        force: false,
+        data: payload,
+      }, { retries: 0 });
+
+      if (!result.conflict) return { result, payload, didMerge, sentChangeVersion };
+
+      const cloud = await fetchCloudSnapshot(auth);
+      if (!cloud.empty && cloud.data && storageSnapshotsMatch(cloud.data, payload)) {
+        return {
+          result: { revision: cloud.revision, updatedAt: cloud.updatedAt || new Date().toISOString() },
+          payload,
+          didMerge,
+          sentChangeVersion,
+        };
+      }
+
+      if (!backupCreated) {
+        createLocalBackup(`Trước khi hợp nhất xung đột Cloud revision ${cloud.revision || result.cloudRevision || 0}`);
+        backupCreated = true;
+      }
+      const latestLocal = collectData();
+      payload = cloud.empty || !cloud.data ? latestLocal : mergeDataSnapshots(latestLocal, cloud.data);
+      baseRevision = Number(cloud.revision || result.cloudRevision || 0);
+      didMerge = true;
+      setCloudStatus("busy", "Đang hợp nhất dữ liệu từ hai thiết bị...", `Lần thử ${attempt + 1}/4`);
+    }
+
+    const error = new Error("Cloud thay đổi liên tục nên chưa thể hợp nhất an toàn. Dữ liệu vẫn còn trên thiết bị và ứng dụng sẽ thử lại.");
+    error.code = "SYNC_CONFLICT_BUSY";
+    throw error;
+  }
+
+  function finishSuccessfulPush(auth, outcome, title = "Đã đồng bộ") {
+    const { result, payload, didMerge, sentChangeVersion } = outcome;
+    const changedAfterSend = localChangeVersion !== sentChangeVersion;
+    if (didMerge) {
+      const finalLocal = changedAfterSend ? mergeDataSnapshots(collectData(), payload) : payload;
+      applyCloudData(finalLocal);
+    }
+    setLocalRevision(auth.branchId, result.revision);
+    setLastSync(auth.branchId, result.updatedAt || new Date().toISOString());
+    setPendingChanges(changedAfterSend);
+    saveBranchCache(auth.branchId);
+    if ($("#cloudRemoteRevision")) $("#cloudRemoteRevision").textContent = String(result.revision || 0);
+    updateSyncUI(auth);
+    setCloudStatus(
+      "success",
+      didMerge ? "Đã hợp nhất dữ liệu hai thiết bị" : title,
+      `Revision ${result.revision} • ${formatTime(result.updatedAt)}`,
+    );
+    markSyncSuccess();
+    if (changedAfterSend) scheduleAutoSync(500);
+    if (didMerge) window.setTimeout(() => window.location.reload(), 500);
+    return true;
+  }
+
   async function fetchCloudSnapshot(auth) {
     return post({ action: "pull", authToken: auth.authToken, deviceId: getDeviceId() });
   }
 
   async function autoPush(auth, reason = "auto") {
-    const baseRevision = getLocalRevision(auth.branchId);
-    const payloadData = collectData();
-    const result = await post({
-      action: "push",
-      authToken: auth.authToken,
-      deviceId: getDeviceId(),
-      deviceName: deviceName(),
-      baseRevision,
-      force: false,
-      data: payloadData,
-    }, { retries: 0 });
-
-    if (result.conflict) {
-      // Có thể lần gửi trước đã thành công nhưng thiết bị mất phản hồi.
-      // Chỉ tự xác nhận khi dữ liệu Cloud giống hệt dữ liệu local.
-      try {
-        const cloud = await fetchCloudSnapshot(auth);
-        if (!cloud.empty && cloud.data && cloudStorageMatchesLocal(cloud.data)) {
-          setLocalRevision(auth.branchId, cloud.revision);
-          setLastSync(auth.branchId, cloud.updatedAt || new Date().toISOString());
-          setPendingChanges(false);
-          saveBranchCache(auth.branchId);
-          if ($("#cloudRemoteRevision")) $("#cloudRemoteRevision").textContent = String(cloud.revision || 0);
-          updateSyncUI(auth);
-          setCloudStatus("success", "Đã đồng bộ", formatTime(cloud.updatedAt));
-          markSyncSuccess();
-          return true;
-        }
-      } catch (error) {
-        console.warn("Không đối chiếu được xung đột Cloud:", error);
-      }
-      if ($("#cloudRemoteRevision")) $("#cloudRemoteRevision").textContent = String(result.cloudRevision || "—");
-
-      if (reason === "manual") {
-        try {
-          const cloud = await fetchCloudSnapshot(auth);
-          if (!cloud.empty && cloud.data) {
-            if (cloudStorageMatchesLocal(cloud.data)) {
-              setLocalRevision(auth.branchId, cloud.revision);
-              setLastSync(auth.branchId, cloud.updatedAt || new Date().toISOString());
-              setPendingChanges(false);
-              saveBranchCache(auth.branchId);
-              updateSyncUI(auth);
-              setCloudStatus("success", "Đã đồng bộ", formatTime(cloud.updatedAt));
-              markSyncSuccess();
-              return true;
-            }
-
-            const accepted = window.confirm(
-              `Cloud revision ${cloud.revision} mới hơn phiên bản ${baseRevision} trên thiết bị.\n\n` +
-              "Thiết bị cũng đang có thay đổi chưa gửi. Nhấn OK để tải dữ liệu Cloud về. " +
-              "Dữ liệu hiện tại trên thiết bị sẽ được sao lưu trước và không bị mất hoàn toàn.\n\n" +
-              "Nhấn Hủy để giữ nguyên dữ liệu trên thiết bị."
-            );
-
-            if (accepted) {
-              createLocalBackup(`Xung đột trước khi tải Cloud revision ${cloud.revision}`);
-              applyCloudData(cloud.data);
-              setLocalRevision(auth.branchId, cloud.revision);
-              setLastSync(auth.branchId, cloud.updatedAt || new Date().toISOString());
-              setPendingChanges(false);
-              saveBranchCache(auth.branchId);
-              if ($("#cloudRemoteRevision")) $("#cloudRemoteRevision").textContent = String(cloud.revision || 0);
-              setCloudStatus("success", "Đã nhận dữ liệu Cloud", "Ứng dụng đang tải lại dữ liệu mới.");
-              markSyncSuccess();
-              window.setTimeout(() => window.location.reload(), 500);
-              return true;
-            }
-
-            setCloudStatus("warning", "Chưa đồng bộ", "Đã giữ nguyên dữ liệu trên thiết bị; không có dữ liệu nào bị xóa.");
-            return false;
-          }
-        } catch (error) {
-          console.warn("Không tải được dữ liệu Cloud để xử lý xung đột:", error);
-        }
-      }
-
-      setCloudStatus("warning", "Có dữ liệu mới trên Cloud", "Dữ liệu trên thiết bị vẫn an toàn. Bấm Đồng bộ ngay để chọn dữ liệu cần giữ.");
-      return false;
-    }
-
-    setLocalRevision(auth.branchId, result.revision);
-    setLastSync(auth.branchId, result.updatedAt || new Date().toISOString());
-    setPendingChanges(false);
-    saveBranchCache(auth.branchId);
-    if ($("#cloudRemoteRevision")) $("#cloudRemoteRevision").textContent = String(result.revision || 0);
-    updateSyncUI(auth);
-    setCloudStatus("success", "Đã đồng bộ", formatTime(result.updatedAt));
-    markSyncSuccess();
-    return true;
+    const outcome = await pushWithConflictMerge(auth, reason);
+    return finishSuccessfulPush(auth, outcome, "Đã đồng bộ");
   }
 
   async function runAutoSync(reason = "auto") {
@@ -753,6 +924,10 @@
 
       if (remoteRevision > localRevision) {
         const cloud = await fetchCloudSnapshot(auth);
+        if (hasPendingChanges()) {
+          await autoPush(auth, reason);
+          return;
+        }
         if (!cloud.empty && cloud.data) {
           createLocalBackup(`Tự động nhận Cloud revision ${cloud.revision}`);
           applyCloudData(cloud.data);
@@ -886,6 +1061,7 @@
     $("#cloudChangePassword")?.addEventListener("click", () => run(changePassword));
 
     window.addEventListener("bdhs:data-saved", () => {
+      localChangeVersion += 1;
       const auth = getAuth();
       if (auth?.branchId) saveBranchCache(auth.branchId);
       setPendingChanges(true);
@@ -934,5 +1110,6 @@
     hasPendingChanges,
     showLogin,
     syncNow: () => runAutoSync("manual"),
+    mergeDataSnapshots,
   };
 })();

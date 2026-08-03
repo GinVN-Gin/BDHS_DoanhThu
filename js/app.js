@@ -7,13 +7,54 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const money=new Intl.NumberFormat("vi-VN",{style:"currency",currency:"VND",maximumFractionDigits:0});
 const compactMoney=new Intl.NumberFormat("vi-VN",{notation:"compact",maximumFractionDigits:1});
 const DRAFT_KEY='bdhs_unsaved_drafts_v111';
+const SYNC_TOMBSTONES_KEY='bdhs_sync_tombstones_v1';
+const SYNC_KEY_META_KEY='bdhs_sync_key_meta_v1';
+const SYNC_RECORD_COLLECTIONS=[
+  {key:STORAGE_KEYS.revenues,id:row=>String(row?.date||'')},
+  {key:STORAGE_KEYS.purchases,id:row=>String(row?.id||'')},
+  {key:STORAGE_KEYS.orders,id:row=>String(row?.id||'')},
+  {key:STORAGE_KEYS.inventories,id:row=>String(row?.month||'')},
+];
 const dirtyState={revenue:false,purchase:false,order:false,buyer:false};
 let unsavedResolver=null, suspendDirty=false;
 
 function load(k,f){try{const r=localStorage.getItem(k);return r?JSON.parse(r):f}catch{return f}}
 function uid(){return crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random()}`}
+function parseStoredArray(raw){try{const value=raw?JSON.parse(raw):[];return Array.isArray(value)?value:[]}catch{return[]}}
+function updateSyncTracking(nextStorage,now){
+  const tombstones=load(SYNC_TOMBSTONES_KEY,{}),keyMeta=load(SYNC_KEY_META_KEY,{});
+  for(const[key,nextRaw]of Object.entries(nextStorage)){
+    if(localStorage.getItem(key)!==nextRaw)keyMeta[key]=now;
+  }
+  for(const def of SYNC_RECORD_COLLECTIONS){
+    const previous=parseStoredArray(localStorage.getItem(def.key)),next=parseStoredArray(nextStorage[def.key]);
+    const previousIds=new Set(previous.map(def.id).filter(Boolean)),nextIds=new Set(next.map(def.id).filter(Boolean));
+    const deleted={...(tombstones[def.key]||{})};
+    for(const id of previousIds)if(!nextIds.has(id))deleted[id]=now;
+    for(const id of nextIds)if(!previousIds.has(id))delete deleted[id];
+    if(Object.keys(deleted).length)tombstones[def.key]=deleted;else delete tombstones[def.key];
+  }
+  localStorage.setItem(SYNC_KEY_META_KEY,JSON.stringify(keyMeta));
+  localStorage.setItem(SYNC_TOMBSTONES_KEY,JSON.stringify(tombstones));
+}
 function normalizeData(){const before=JSON.stringify({revenues:state.revenues,purchases:state.purchases});state.revenues=state.revenues.map(r=>({...r,date:r.date||todayISO(),storeExpense:Number(r.storeExpense)||((Number(r.dailyExpense)||0)+(Number(r.partTimeSalary)||0)),totalRevenue:Number(r.totalRevenue)||((Number(r.cash)||0)+(Number(r.transfer)||0)+(Number(r.dailyExpense)||0)+(Number(r.partTimeSalary)||0))}));state.purchases=state.purchases.map(p=>{const row={...p,id:p.id||uid(),total:Number(p.total)||((Number(p.mtfVat)||0)+(Number(p.mtfNone)||0)+(Number(p.otherPurchase)||0))};return{...row,purchaseType:row.purchaseType||inferPurchaseType(row)}});const after=JSON.stringify({revenues:state.revenues,purchases:state.purchases});if(before!==after)save()}
-function save(){localStorage.setItem(STORAGE_KEYS.revenues,JSON.stringify(state.revenues));localStorage.setItem(STORAGE_KEYS.purchases,JSON.stringify(state.purchases));localStorage.setItem(STORAGE_KEYS.purchaseContents,JSON.stringify(state.purchaseContents));localStorage.setItem(STORAGE_KEYS.settings,JSON.stringify(state.settings));localStorage.setItem(STORAGE_KEYS.orders,JSON.stringify(state.orders));localStorage.setItem(STORAGE_KEYS.products,JSON.stringify(state.products));localStorage.setItem(STORAGE_KEYS.buyer,JSON.stringify(state.buyer));localStorage.setItem(STORAGE_KEYS.inventories,JSON.stringify(state.inventories));localStorage.setItem(STORAGE_KEYS.inventoryCatalog,JSON.stringify(state.inventoryCatalog));window.dispatchEvent(new CustomEvent('bdhs:data-saved',{detail:{at:new Date().toISOString()}}))}
+function save(){
+  const now=new Date().toISOString();
+  const nextStorage={
+    [STORAGE_KEYS.revenues]:JSON.stringify(state.revenues),
+    [STORAGE_KEYS.purchases]:JSON.stringify(state.purchases),
+    [STORAGE_KEYS.purchaseContents]:JSON.stringify(state.purchaseContents),
+    [STORAGE_KEYS.settings]:JSON.stringify(state.settings),
+    [STORAGE_KEYS.orders]:JSON.stringify(state.orders),
+    [STORAGE_KEYS.products]:JSON.stringify(state.products),
+    [STORAGE_KEYS.buyer]:JSON.stringify(state.buyer),
+    [STORAGE_KEYS.inventories]:JSON.stringify(state.inventories),
+    [STORAGE_KEYS.inventoryCatalog]:JSON.stringify(state.inventoryCatalog),
+  };
+  updateSyncTracking(nextStorage,now);
+  for(const[key,value]of Object.entries(nextStorage))localStorage.setItem(key,value);
+  window.dispatchEvent(new CustomEvent('bdhs:data-saved',{detail:{at:now}}));
+}
 function parseMoneyInput(v){return Math.max(0,Number(String(v||"").replace(/[^0-9]/g,""))||0)}
 function setMoney(id,v){$(id).value=v?new Intl.NumberFormat("vi-VN").format(v):""}
 function value(id){return parseMoneyInput($(id).value)}

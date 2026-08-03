@@ -1,4 +1,4 @@
-const CACHE_NAME = "bdhs-v3.3.3-sync-conflict-fix";
+const CACHE_NAME = "bdhs-v3.3.4-conflict-safe-merge";
 const CORE_ASSETS = ["./","./index.html","./manifest.webmanifest","./css/style.css","./js/app.js","./js/cloud-sync.js","./js/excel-export.js","./js/ui-refresh.js","./js/pwa.js","./vendor/jszip.min.js","./BDHS_Excel_Thang_Official_Template.xlsx","./icons/icon-192.png","./icons/icon-512.png","./assets/ha-suong-logo.png","./assets/ha-suong-default-bg.png","./assets/ha-suong-app-bg.png"];
 self.addEventListener("message",event=>{if(event.data?.type==="SKIP_WAITING")self.skipWaiting()});
 self.addEventListener("install",event=>{event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(CORE_ASSETS)));self.skipWaiting()});
