@@ -773,3 +773,383 @@ body[data-theme="dark"] input::placeholder,body[data-theme="dark"] textarea::pla
   .settings-launch-tile b{font-size:13px!important}
   #homeView .summary-grid{margin-bottom:24px!important}
 }
+
+
+/* ===== V3.0 Stable: font color, MTF count workflow, mobile keyboard ===== */
+:root{--app-font-color:#102033}
+body{color:var(--app-font-color)}
+.app-shell,.view,.form-card,.table-card,.settings-card,.modal-card,.action-card,.settings-launch-tile{color:var(--app-font-color)}
+/* Giữ màu trạng thái và chữ trên nền màu */
+.btn.primary,.summary-card,.report-highlight,.app-header,.grand,.positive,.negative-text,.vat-label,.novat-label,.status-unconfirmed,.status-confirmed{color:revert-layer}
+.order-type-chooser{max-width:680px;margin-inline:auto;padding:20px}
+.order-type-chooser h3{font-size:18px;margin-bottom:5px}.order-type-chooser p{color:var(--muted);font-size:12px;line-height:1.5;margin-bottom:15px}
+.order-type-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.order-type-choice-grid .type-choice{min-height:92px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:5px;padding:16px;text-align:left}
+.order-type-choice-grid .type-choice strong{font-size:17px}.order-type-choice-grid .type-choice small{font-size:11px;color:var(--muted)}
+.order-entry-type{margin:8px 0 0;font-size:13px}.order-count-card{padding:11px}.order-count-card .card-title-row{align-items:flex-start}
+.order-count-table-wrap{margin-top:10px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.order-count-table{width:100%;min-width:0;table-layout:fixed;border-collapse:collapse;font-size:12px}
+.order-count-table th,.order-count-table td{padding:7px 6px;border-bottom:1px solid #edf1f5;white-space:normal;vertical-align:middle}
+.order-count-table th{font-size:10px;background:#f6f9fb;color:#475569;text-align:center}
+.order-count-table th:nth-child(1),.order-count-table td:nth-child(1){width:auto;text-align:left}
+.order-count-table th:nth-child(2),.order-count-table td:nth-child(2){width:54px;text-align:center}
+.order-count-table th:nth-child(3),.order-count-table td:nth-child(3){width:72px;text-align:center}
+.order-count-table th:nth-child(4),.order-count-table td:nth-child(4){width:72px;text-align:center}
+.order-count-table .item-name{font-weight:650;line-height:1.25}.order-count-table .order-unit{color:var(--muted);font-size:11px}
+.order-count-table .stock-now{width:58px;height:38px;margin:0;padding:5px;text-align:center;font-size:16px;font-weight:700;border-radius:9px}
+.order-count-table .order-qty{display:inline-grid;place-items:center;min-width:42px;height:32px;padding:0 6px;border-radius:9px;background:#eef6f5;color:#0f766e;font-size:16px;font-weight:800}
+.order-count-table tr.zero-order{opacity:.58}
+.order-entry-footer{position:sticky;bottom:calc(env(safe-area-inset-bottom,0px) + 6px);z-index:8;margin-top:10px;padding:10px 12px;border:1px solid rgba(15,118,110,.2);border-radius:14px;background:rgba(255,255,255,.94);backdrop-filter:blur(14px);box-shadow:0 10px 28px rgba(15,23,42,.14);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.order-entry-footer>div:first-child span{display:block;color:var(--muted);font-size:10px}.order-entry-footer>div:first-child strong{font-size:24px;color:#0f766e}.order-entry-footer .button-row{margin:0}
+.order-catalog-details{margin-top:12px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:rgba(248,250,252,.82)}
+.order-catalog-details>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;cursor:pointer}.order-catalog-details>summary::-webkit-details-marker{display:none}.order-catalog-details>summary span:first-child{display:grid;gap:2px}.order-catalog-details>summary strong{font-size:12px}.order-catalog-details>summary small{font-size:9px;color:var(--muted)}.order-catalog-details[open] .accordion-chevron{transform:rotate(180deg)}
+.order-catalog-body{padding:10px;border-top:1px solid var(--line)}.order-catalog-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.order-catalog-toolbar small{font-size:9px;color:var(--muted)}
+.order-catalog-list{display:grid;gap:5px}.order-catalog-row{display:grid;grid-template-columns:minmax(0,1fr) 55px 82px 100px;gap:6px;align-items:center;padding:7px 8px;border:1px solid #e2e8f0;border-radius:9px;background:#fff;font-size:10px}.order-catalog-row strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.order-catalog-row span{text-align:right;color:#475569;white-space:nowrap}.order-catalog-row.editing{grid-template-columns:minmax(125px,1fr) 55px 65px 90px 30px}.order-catalog-row input{height:31px;margin:0;padding:4px 6px;font-size:10px}.order-catalog-row .catalog-target,.order-catalog-row .catalog-price{text-align:right}
+#appFontColor{height:42px;padding:4px;cursor:pointer}
+body.keyboard-open .order-entry-footer{position:static}body.keyboard-open{padding-bottom:38vh}
+@media(max-width:640px){
+  .order-type-choice-grid{grid-template-columns:1fr 1fr;gap:8px}.order-type-choice-grid .type-choice{min-height:82px;padding:12px}.order-type-choice-grid .type-choice strong{font-size:15px}
+  .order-count-card{padding:8px}.order-count-table th,.order-count-table td{padding:6px 4px}.order-count-table th:nth-child(2),.order-count-table td:nth-child(2){width:44px}.order-count-table th:nth-child(3),.order-count-table td:nth-child(3){width:64px}.order-count-table th:nth-child(4),.order-count-table td:nth-child(4){width:64px}.order-count-table .stock-now{width:52px;height:42px;font-size:17px}.order-count-table .order-qty{font-size:16px}
+  .order-entry-footer{align-items:center;padding:9px}.order-entry-footer .btn{padding:8px 10px;font-size:11px}.order-catalog-row{grid-template-columns:minmax(0,1fr) 43px 69px 82px;font-size:9px}.order-catalog-row.editing{grid-template-columns:minmax(100px,1fr) 43px 55px 74px 28px}.order-catalog-toolbar{align-items:flex-start}
+}
+
+
+/* ===== V3.0.1 — compact MTF stock-count rows + restore default stock list row ===== */
+.order-default-stock-row{margin:9px 0 7px!important}
+.order-default-stock-row>summary{padding:8px 10px!important;min-height:42px}
+.order-default-stock-row>summary strong{font-size:11px!important}
+.order-default-stock-row>summary small{font-size:8px!important}
+.order-count-table-wrap{margin-top:6px!important}
+.order-count-table{font-size:11px!important}
+.order-count-table th,.order-count-table td{padding:3px 4px!important;height:34px!important;line-height:1.08!important}
+.order-count-table th{font-size:9px!important}
+.order-count-table .item-name{font-size:10.5px!important;line-height:1.12!important}
+.order-count-table .order-unit{font-size:9px!important}
+.order-count-table .stock-now{width:44px!important;height:29px!important;min-height:29px!important;margin:0!important;padding:2px 3px!important;font-size:14px!important;line-height:1!important;border-radius:7px!important}
+.order-count-table .order-qty{min-width:36px!important;height:25px!important;padding:0 4px!important;font-size:13px!important;border-radius:7px!important}
+.order-count-table th:nth-child(2),.order-count-table td:nth-child(2){width:43px!important}
+.order-count-table th:nth-child(3),.order-count-table td:nth-child(3){width:55px!important}
+.order-count-table th:nth-child(4),.order-count-table td:nth-child(4){width:57px!important}
+@media(max-width:640px){
+  .order-count-card{padding:7px!important}
+  .order-count-card .card-title-row{margin-bottom:3px!important}
+  .order-count-card .card-title-row h3{font-size:14px!important}
+  .order-count-card .card-title-row small{font-size:9px!important}
+  .order-count-table th,.order-count-table td{padding:2px 3px!important;height:32px!important}
+  .order-count-table .item-name{font-size:10px!important}
+  .order-count-table .stock-now{width:42px!important;height:28px!important;min-height:28px!important;font-size:14px!important}
+  .order-count-table .order-qty{min-width:34px!important;height:24px!important;font-size:12px!important}
+  .order-default-stock-row{margin-top:7px!important}
+}
+
+/* V3.0.2 — Hà Sương blue login identity */
+.auth-gate{
+  padding:max(18px,env(safe-area-inset-top)) 16px max(18px,env(safe-area-inset-bottom));
+  overflow:auto;
+  background:
+    radial-gradient(circle at 14% 15%,rgba(255,255,255,.78) 0 4%,transparent 18%),
+    radial-gradient(circle at 88% 18%,rgba(255,255,255,.42) 0 3%,transparent 17%),
+    linear-gradient(155deg,#eef8ff 0%,#ccecff 42%,#69bdfc 100%);
+  backdrop-filter:none;
+}
+.auth-gate::before,.auth-gate::after{
+  content:"";
+  position:fixed;
+  pointer-events:none;
+  border-radius:50%;
+  border:34px solid rgba(255,255,255,.28);
+  width:68vw;height:68vw;
+  max-width:720px;max-height:720px;
+}
+.auth-gate::before{left:-38vw;bottom:-30vw}
+.auth-gate::after{right:-42vw;top:-30vw;border-color:rgba(31,129,255,.12)}
+.auth-shell{
+  position:relative;
+  z-index:1;
+  width:min(100%,430px);
+  padding:22px 24px 24px;
+  border:1px solid rgba(255,255,255,.82);
+  border-radius:30px;
+  background:rgba(255,255,255,.91);
+  box-shadow:0 28px 75px rgba(5,87,180,.24),inset 0 1px 0 rgba(255,255,255,.95);
+  backdrop-filter:blur(24px) saturate(1.14);
+}
+.auth-brand{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+  margin:-4px 0 18px;
+  text-align:center;
+}
+.auth-logo{
+  display:block;
+  width:clamp(126px,38vw,172px);
+  height:auto;
+  border-radius:50%;
+  background:#fff;
+  filter:drop-shadow(0 14px 24px rgba(13,104,190,.19));
+}
+.auth-brand-copy strong{
+  display:block;
+  color:#0756b7;
+  font-size:21px;
+  font-weight:760;
+  letter-spacing:-.025em;
+}
+.auth-brand-copy small{
+  display:block;
+  margin-top:4px;
+  color:#58708f;
+  font-size:11px;
+  font-weight:520;
+}
+.auth-panel>.eyebrow{
+  color:#1677ff!important;
+  font-size:10px;
+  font-weight:730;
+  letter-spacing:.13em;
+  text-align:center;
+}
+.auth-panel h1{
+  margin:5px 0 7px;
+  color:#093f8c;
+  font-size:28px;
+  font-weight:740;
+  letter-spacing:-.035em;
+  text-align:center;
+}
+.auth-lead{text-align:center;color:#64809f}
+.auth-panel label{color:#174d8c;font-weight:650}
+.auth-panel input{
+  min-height:47px;
+  border-color:#b7d3f1;
+  background:rgba(250,253,255,.92);
+  box-shadow:inset 0 1px 2px rgba(20,77,135,.035);
+}
+.auth-panel input:focus{
+  border-color:#2386ff;
+  box-shadow:0 0 0 4px rgba(35,134,255,.13);
+}
+.auth-main-btn,.auth-main-btn.btn.primary{
+  background:linear-gradient(135deg,#27a8ff,#1269ef)!important;
+  box-shadow:0 12px 24px rgba(18,105,239,.26);
+}
+.auth-links button,.auth-back{color:#0868dc}
+.auth-message.is-busy{color:#0868dc}
+@media(max-width:560px){
+  .auth-gate{align-items:start;padding-top:max(22px,env(safe-area-inset-top))}
+  .auth-shell{padding:18px 18px 21px;border-radius:26px}
+  .auth-logo{width:122px}
+  .auth-brand-copy strong{font-size:19px}
+  .auth-panel h1{font-size:25px}
+}
+@media(max-height:720px){
+  .auth-logo{width:96px}
+  .auth-brand{margin-bottom:10px}
+  .auth-brand-copy small{display:none}
+  .auth-panel h1{font-size:23px}
+  .auth-lead{margin-bottom:12px}
+}
+
+/* V3.0.3 — Login poster layout + default Hà Sương background */
+.auth-gate{
+  display:flex!important;
+  align-items:flex-start!important;
+  justify-content:center!important;
+  padding:max(18px,env(safe-area-inset-top)) 14px max(24px,env(safe-area-inset-bottom))!important;
+  overflow-y:auto!important;
+  background-image:
+    linear-gradient(180deg,rgba(232,247,255,.76),rgba(80,178,249,.62)),
+    url("../assets/ha-suong-default-bg.png")!important;
+  background-size:cover!important;
+  background-position:center top!important;
+  background-attachment:fixed!important;
+}
+.auth-gate::before{
+  content:""!important;
+  position:fixed!important;
+  inset:0!important;
+  width:auto!important;height:auto!important;
+  border:0!important;border-radius:0!important;
+  background:linear-gradient(180deg,rgba(255,255,255,.20),rgba(15,119,232,.10))!important;
+  backdrop-filter:blur(3px)!important;
+  pointer-events:none!important;
+}
+.auth-gate::after{display:none!important}
+.auth-shell{
+  width:min(100%,430px)!important;
+  margin:0 auto!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+}
+.auth-brand{
+  margin:0 0 10px!important;
+  padding-top:2px!important;
+  gap:0!important;
+}
+.auth-logo{
+  width:clamp(170px,47vw,230px)!important;
+  max-height:230px!important;
+  object-fit:contain!important;
+  border-radius:50%!important;
+  background:rgba(255,255,255,.94)!important;
+  box-shadow:0 18px 42px rgba(0,86,174,.22)!important;
+}
+.auth-brand-copy{display:none!important}
+.auth-panel{
+  position:relative!important;
+  padding:22px 20px 20px!important;
+  border:1px solid rgba(255,255,255,.88)!important;
+  border-radius:28px!important;
+  background:rgba(255,255,255,.91)!important;
+  box-shadow:0 22px 58px rgba(0,77,160,.24),inset 0 1px 0 rgba(255,255,255,.98)!important;
+  backdrop-filter:blur(22px) saturate(1.12)!important;
+}
+.auth-panel.hidden{display:none!important}
+.auth-panel h1{
+  margin:0 0 4px!important;
+  color:#0752b4!important;
+  font-size:clamp(28px,7vw,38px)!important;
+  font-weight:820!important;
+  line-height:1.05!important;
+  letter-spacing:-.045em!important;
+  text-align:center!important;
+  text-shadow:0 2px 0 rgba(255,255,255,.75)!important;
+}
+.auth-lead{
+  margin:0 0 20px!important;
+  color:#526d91!important;
+  font-size:13px!important;
+  font-weight:570!important;
+  text-align:center!important;
+}
+.auth-field{display:block!important;margin:0 0 14px!important;color:#0759c7!important}
+.auth-field>span:first-child{display:block!important;margin:0 0 7px!important;font-size:13px!important;font-weight:720!important}
+.auth-panel input{
+  width:100%!important;
+  min-height:48px!important;
+  margin:0!important;
+  padding:11px 14px!important;
+  border:1px solid #b7d2ee!important;
+  border-radius:13px!important;
+  background:rgba(250,253,255,.96)!important;
+  color:#14375f!important;
+  font-size:15px!important;
+}
+.auth-password-wrap{position:relative!important;display:block!important}
+.auth-password-wrap input{padding-right:48px!important}
+.auth-password-toggle{
+  position:absolute!important;right:8px!important;top:50%!important;transform:translateY(-50%)!important;
+  width:38px!important;height:38px!important;border:0!important;background:transparent!important;
+  color:#8298b5!important;font-size:18px!important;
+}
+.auth-options{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;margin:-1px 0 15px!important}
+.auth-options>button,.auth-offline{border:0!important;background:transparent!important;color:#0868dc!important;font-size:12px!important;font-weight:650!important}
+.auth-remember{display:flex!important;align-items:center!important;gap:7px!important;margin:0!important;color:#24364f!important;font-size:12px!important;font-weight:570!important}
+.auth-remember input{width:18px!important;height:18px!important;min-height:18px!important;margin:0!important;accent-color:#1677ff!important}
+.auth-main-btn,.auth-main-btn.btn.primary{
+  min-height:50px!important;margin:0!important;border-radius:13px!important;
+  background:linear-gradient(180deg,#28a9ff,#0967e9)!important;
+  box-shadow:0 11px 22px rgba(9,103,233,.29)!important;
+  font-size:15px!important;font-weight:800!important;letter-spacing:.025em!important;
+}
+.auth-divider{display:flex!important;align-items:center!important;gap:12px!important;margin:19px 0 13px!important;color:#657b99!important;font-size:10px!important;font-weight:730!important;letter-spacing:.04em!important}
+.auth-divider::before,.auth-divider::after{content:"";height:1px;flex:1;background:#bed1e5}
+.auth-divider span{white-space:nowrap}
+.auth-quick-grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:10px!important}
+.auth-quick-login{
+  min-height:48px!important;border:1px solid #bdd4ec!important;border-radius:13px!important;
+  background:rgba(255,255,255,.74)!important;color:#0860ca!important;
+  font-size:14px!important;font-weight:720!important;box-shadow:0 5px 12px rgba(24,86,146,.07)!important;
+}
+.auth-offline{display:block!important;margin:12px auto 0!important;padding:5px 9px!important;color:#5c7391!important}
+.auth-trust{display:flex!important;justify-content:center!important;gap:22px!important;margin:15px -4px -4px!important;padding-top:13px!important;border-top:1px solid rgba(154,185,217,.45)!important;color:#416184!important;font-size:10px!important;font-weight:560!important}
+.auth-message{width:100%!important;margin:10px 0 0!important;padding:7px 12px!important;text-align:center!important;border-radius:12px!important;background:rgba(255,255,255,.75)!important}
+.background-preview{background-image:linear-gradient(rgba(255,255,255,.55),rgba(255,255,255,.55)),url("../assets/ha-suong-default-bg.png");background-size:cover;background-position:center top}
+@media(max-width:560px){
+  .auth-logo{width:166px!important}
+  .auth-panel{padding:19px 16px 17px!important;border-radius:24px!important}
+  .auth-panel h1{font-size:29px!important}
+  .auth-lead{font-size:12px!important;margin-bottom:16px!important}
+  .auth-trust{gap:12px!important;font-size:9px!important}
+}
+@media(max-height:740px){
+  .auth-logo{width:118px!important;max-height:118px!important}
+  .auth-brand{margin-bottom:6px!important}
+  .auth-panel{padding-top:16px!important}
+  .auth-panel h1{font-size:25px!important}
+  .auth-lead{margin-bottom:11px!important}
+  .auth-field{margin-bottom:9px!important}
+  .auth-panel input{min-height:43px!important}
+  .auth-main-btn{min-height:44px!important}
+  .auth-divider{margin:12px 0 9px!important}
+  .auth-quick-login{min-height:42px!important}
+  .auth-trust{margin-top:9px!important;padding-top:9px!important}
+}
+
+
+/* ===== V3.3 Stable — centered login, brand-only app background ===== */
+.auth-gate{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  min-height:100dvh!important;
+  padding:max(18px,env(safe-area-inset-top)) 14px max(18px,env(safe-area-inset-bottom))!important;
+  overflow:auto!important;
+  background-image:
+    linear-gradient(180deg,rgba(232,247,255,.45),rgba(68,168,245,.30)),
+    url("../assets/ha-suong-app-bg.png")!important;
+  background-size:cover!important;
+  background-position:center!important;
+  background-attachment:fixed!important;
+}
+.auth-shell{
+  width:min(100%,430px)!important;
+  margin:auto!important;
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:center!important;
+}
+.auth-brand{flex:0 0 auto!important}
+.auth-panel{flex:0 0 auto!important}
+.auth-offline{display:none!important}
+body{
+  background-image:
+    linear-gradient(135deg,rgba(248,252,255,.84),rgba(245,251,255,.80) 48%,rgba(255,255,255,.86)),
+    url("../assets/ha-suong-app-bg.png");
+  background-size:cover;
+  background-position:center;
+  background-attachment:fixed;
+}
+.background-preview{
+  background-image:linear-gradient(rgba(255,255,255,.52),rgba(255,255,255,.52)),url("../assets/ha-suong-app-bg.png")!important;
+  background-size:cover!important;
+  background-position:center!important;
+}
+@media(max-width:560px){
+  .auth-gate{padding-left:13px!important;padding-right:13px!important}
+  .auth-shell{max-width:410px!important}
+}
+@media(max-height:760px){
+  .auth-gate{align-items:flex-start!important}
+  .auth-shell{margin-top:auto!important;margin-bottom:auto!important;padding-block:4px!important}
+  .auth-logo{width:112px!important;max-height:112px!important}
+  .auth-brand{margin-bottom:6px!important}
+  .auth-panel{padding:15px 16px!important}
+  .auth-panel h1{font-size:24px!important}
+  .auth-lead{margin-bottom:10px!important}
+  .auth-field{margin-bottom:8px!important}
+  .auth-panel input{min-height:42px!important}
+  .auth-divider{margin:10px 0 8px!important}
+  .auth-trust{margin-top:8px!important;padding-top:8px!important}
+}
+
+
+/* V3.3.1 Final RC — order code follows branch text color */
+.order-code-display{background:transparent!important;border-color:transparent!important;padding-inline:0!important;font-size:14px!important;font-weight:800!important;letter-spacing:.015em!important;box-shadow:none!important}
+@media(max-width:640px){.order-code-display{font-size:12px!important}}

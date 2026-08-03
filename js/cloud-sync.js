@@ -27,7 +27,6 @@
 
   const $ = (selector) => document.querySelector(selector);
   let busy = false;
-  let offlineMode = false;
   let autoSyncTimer = null;
   let autoSyncRunning = false;
 
@@ -201,7 +200,6 @@
   }
 
   function showLogin() {
-    offlineMode = false;
     $("#authGate")?.classList.remove("hidden");
     document.body.classList.add("auth-locked");
     const remembered = localStorage.getItem(USERNAME_KEY) || "";
@@ -339,7 +337,7 @@
     return {
       schemaVersion: 1,
       exportedAt: new Date().toISOString(),
-      appVersion: "2.7-auto-sync-excel",
+      appVersion: "3.3-stable",
       storage,
     };
   }
@@ -626,6 +624,17 @@
 
   function bind() {
     $("#loginSubmit")?.addEventListener("click", () => run(login, true));
+    $("#toggleLoginPassword")?.addEventListener("click", () => {
+      const input=$("#loginPassword");
+      if(!input)return;
+      input.type=input.type==="password"?"text":"password";
+      $("#toggleLoginPassword").setAttribute("aria-label",input.type==="password"?"Hiện mật khẩu":"Ẩn mật khẩu");
+    });
+    document.querySelectorAll(".auth-quick-login").forEach(button=>button.addEventListener("click",()=>{
+      const input=$("#loginUsername");
+      if(input){input.value=button.dataset.username||"";input.focus();}
+      $("#loginPassword")?.focus();
+    }));
     $("#loginPassword")?.addEventListener("keydown", (event) => {
       if (event.key === "Enter") run(login, true);
     });
@@ -637,10 +646,6 @@
     $("#backToLoginFromReset")?.addEventListener("click", () => showLoginPanel("login"));
     $("#forgotSend")?.addEventListener("click", () => run(requestResetCode, true));
     $("#resetSubmit")?.addEventListener("click", () => run(resetPassword, true));
-    $("#useOffline")?.addEventListener("click", () => {
-      offlineMode = true;
-      hideLogin();
-    });
 
     $("#cloudPush")?.addEventListener("click", () => run(pushData));
     $("#cloudPull")?.addEventListener("click", () => run(pullData));
@@ -669,6 +674,7 @@
     if (auth?.branchId) ensureBranchContext(auth.branchId);
     if (!auth?.authToken) {
       showLogin();
+      if (!navigator.onLine) setLoginMessage("warning", "Lần đăng nhập đầu tiên cần có Internet. Sau khi đăng nhập thành công, ứng dụng vẫn dùng được khi mất mạng.");
       return;
     }
     setLoginMessage("busy", "Đang kiểm tra phiên đăng nhập...");

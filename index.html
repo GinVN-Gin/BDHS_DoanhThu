@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#0f766e" />
+  <meta name="theme-color" content="#1677ff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="BDHS" />
+  <meta name="apple-mobile-web-app-title" content="Hà Sương" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <title>BDHS – Quản lý kinh doanh</title>
+  <title>Bún đậu Hà Sương – Quản lý kinh doanh V3.3</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -18,18 +18,20 @@
   <div id="authGate" class="auth-gate hidden" aria-live="polite">
     <div class="auth-shell">
       <div class="auth-brand">
-        <span class="auth-mark">B</span>
-        <div><strong>BDHS</strong><small>Quản lý doanh thu</small></div>
+        <img class="auth-logo" src="assets/ha-suong-logo.png" alt="Logo Bún đậu Hà Sương" />
+        <div class="auth-brand-copy"><strong>Bún đậu Hà Sương</strong><small>Quản lý bán hàng · Thu chi · Dòng tiền</small></div>
       </div>
 
       <section id="authPanelLogin" class="auth-panel">
-        <p class="eyebrow">ĐĂNG NHẬP CHI NHÁNH</p>
-        <h1>Chào mừng trở lại</h1>
-        <p class="auth-lead">Đăng nhập một lần trên thiết bị để đồng bộ dữ liệu.</p>
-        <label>Tài khoản<input id="loginUsername" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="socxoai hoặc rachgia" /></label>
-        <label>Mật khẩu<input id="loginPassword" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu" /></label>
-        <button id="loginSubmit" class="btn primary auth-main-btn" type="button">Đăng nhập</button>
-        <div class="auth-links"><button id="showForgotPassword" type="button">Quên mật khẩu?</button><button id="useOffline" type="button">Dùng ngoại tuyến</button></div>
+        <h1>Bún đậu Hà Sương</h1>
+        <p class="auth-lead">Quản lý bán hàng · Thu chi · Dòng tiền</p>
+        <label class="auth-field"><span>Tên đăng nhập</span><input id="loginUsername" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Nhập tên đăng nhập" /></label>
+        <label class="auth-field"><span>Mật khẩu</span><span class="auth-password-wrap"><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu" /><button id="toggleLoginPassword" class="auth-password-toggle" type="button" aria-label="Hiện mật khẩu">◉</button></span></label>
+        <div class="auth-options"><label class="auth-remember"><input id="rememberLogin" type="checkbox" checked /> <span>Ghi nhớ đăng nhập</span></label><button id="showForgotPassword" type="button">Quên mật khẩu?</button></div>
+        <button id="loginSubmit" class="btn primary auth-main-btn" type="button"><span>▣</span> ĐĂNG NHẬP</button>
+        <div class="auth-divider"><span>HOẶC ĐĂNG NHẬP NHANH</span></div>
+        <div class="auth-quick-grid"><button class="auth-quick-login" data-username="socxoai" type="button">⌂ <span>Sóc Xoài</span></button><button class="auth-quick-login" data-username="rachgia" type="button">▦ <span>Rạch Giá</span></button></div>
+        <div class="auth-trust"><span>♢ Dữ liệu được bảo mật</span><span>☁ Đồng bộ đám mây</span></div>
       </section>
 
       <section id="authPanelForgot" class="auth-panel hidden">
@@ -212,16 +214,41 @@
 
 
       <section id="orderView" class="view">
-        <div class="section-heading order-page-heading"><div><p class="eyebrow">ĐƠN ĐẶT HÀNG</p><h2>Đặt hàng <span id="orderTypeTitle" class="order-type-title vat-label">MTF VAT</span></h2></div></div>
-        <div class="form-card order-head compact-order-head">
-          <div class="order-type-switch compact-switch"><button id="orderVatBtn" class="type-choice vat active" type="button">MTF VAT</button><button id="orderNoVatBtn" class="type-choice novat" type="button">MTF</button></div>
-          <label class="compact-date-label">Ngày đặt<input id="orderDate" type="date" /></label>
-        </div>
-        <div class="table-card order-stock-card compact-order-card">
-          <div class="card-title-row"><div><h3>Nhập tồn hiện tại</h3><small>Tối đa 2 chữ số. Cột cần đặt được hệ thống tự tính.</small></div></div>
-          <div class="table-wrap"><table class="order-table compact-order-table"><thead><tr><th>Hàng hóa</th><th>ĐVT</th><th>Tồn chuẩn</th><th>Tồn hiện tại</th><th>Cần đặt</th><th>Giá nhập</th><th>Thành tiền</th></tr></thead><tbody id="orderItemsBody"></tbody></table></div>
-          <div class="button-row compact-order-actions"><button id="saveOrderDraft" class="btn primary" type="button">Lưu bảng đặt hàng</button><button id="resetOrder" class="btn ghost" type="button">Reset</button></div>
-        </div>
+        <div class="section-heading order-page-heading"><div><p class="eyebrow">ĐƠN ĐẶT HÀNG</p><h2>Đặt hàng MTF</h2></div></div>
+
+        <section id="orderTypeChooser" class="form-card order-type-chooser">
+          <div><h3>Chọn loại đơn</h3><p>Chọn loại đơn trước, sau đó nhập số lượng còn thực tế. Hệ thống tự tính số lượng cần đặt.</p></div>
+          <div class="order-type-choice-grid">
+            <button id="orderVatBtn" class="type-choice vat" type="button"><strong>MTF VAT</strong><small>Đơn hàng có hóa đơn VAT</small></button>
+            <button id="orderNoVatBtn" class="type-choice novat" type="button"><strong>MTF</strong><small>Đơn hàng không VAT</small></button>
+          </div>
+        </section>
+
+        <section id="orderEntryPanel" class="hidden">
+          <div class="form-card order-head compact-order-head">
+            <div><button id="backToOrderType" class="mini-btn" type="button">← Chọn lại loại</button><p class="order-entry-type">Đang lập: <strong id="orderTypeTitle" class="order-type-title vat-label">MTF VAT</strong></p></div>
+            <label class="compact-date-label">Ngày đặt<input id="orderDate" type="date" /></label>
+          </div>
+
+          <div class="table-card order-stock-card compact-order-card order-count-card">
+            <div class="card-title-row"><div><h3>Kiểm tồn đặt hàng</h3><small>Chỉ nhập cột Còn. SL đặt tự tính theo định mức hiện có.</small></div><span id="orderDraftCode" class="badge order-code-display">Tự tạo khi lưu</span></div>
+            <details id="orderProductCatalog" class="order-catalog-details order-default-stock-row">
+              <summary><span><strong>Danh sách hàng tồn mặc định</strong><small id="orderCatalogMeta">Bấm để xem danh mục và định mức đang áp dụng</small></span><span class="accordion-chevron">⌄</span></summary>
+              <div class="order-catalog-body">
+                <div class="order-catalog-toolbar"><small>Tên hàng, ĐVT, tồn chuẩn và giá nhập được dùng để tính đơn.</small><button id="editOrderCatalog" class="mini-btn edit" type="button">✎ Chỉnh sửa</button></div>
+                <div id="orderCatalogList" class="order-catalog-list"></div>
+                <div id="orderCatalogActions" class="button-row hidden"><button id="addOrderProduct" class="btn ghost" type="button">+ Thêm dòng</button><button id="saveOrderCatalog" class="btn primary" type="button">Lưu danh mục</button><button id="cancelOrderCatalog" class="btn secondary" type="button">Hủy</button></div>
+              </div>
+            </details>
+
+            <div class="order-count-table-wrap"><table class="order-count-table"><thead><tr><th>Hàng hóa</th><th>ĐVT</th><th>Còn</th><th>SL đặt</th></tr></thead><tbody id="orderItemsBody"></tbody></table></div>
+
+            <div class="order-entry-footer">
+              <div><span>Tổng SL cần đặt</span><strong id="orderTotalQty">0</strong></div>
+              <div class="button-row compact-order-actions"><button id="saveOrderDraft" class="btn primary" type="button">Lưu đơn đặt</button><button id="resetOrder" class="btn ghost" type="button">Reset</button></div>
+            </div>
+          </div>
+        </section>
 
         <section id="orderPreviewSection" class="order-preview-section hidden">
           <div id="orderPendingWarning" class="order-pending-warning"><strong>CHƯA XÁC NHẬN ĐÃ ĐẶT</strong><span>Đơn này chưa được lưu sang phần Chi/Mua hàng.</span></div>
@@ -244,7 +271,7 @@
         </div>
         <div class="table-card order-history-card">
           <div class="card-title-row order-history-head"><div><h3>Đơn trong tháng</h3><small>Toàn bộ đơn đã lưu trong tháng được chọn</small></div><label>Tháng<input id="orderHistoryMonth" type="month" /></label></div>
-          <div class="table-wrap"><table class="order-history-table"><thead><tr><th>Ngày</th><th>Loại</th><th>Tổng</th><th>Trạng thái</th><th></th></tr></thead><tbody id="orderLatestBody"></tbody></table></div>
+          <div class="table-wrap"><table class="order-history-table"><thead><tr><th>Mã đơn</th><th>Ngày</th><th>Loại</th><th>Tổng</th><th>Trạng thái</th><th></th></tr></thead><tbody id="orderLatestBody"></tbody></table></div>
         </div>
       </section>
 
@@ -299,12 +326,12 @@
 
           <details id="settingsAppThemePanel" data-settings-panel-id="app-theme" class="settings-card settings-accordion">
             <summary><div><h3>Giao diện ứng dụng</h3><p>Tông màu và độ trong của các khối nội dung.</p></div><span class="accordion-chevron">⌄</span></summary>
-            <div class="settings-accordion-body"><label>Tông màu<select id="themeSelect"><option value="business">Business</option><option value="oneui">One UI</option><option value="ios">iOS sáng</option><option value="dark">Dark</option><option value="sunrise">Sáng nhiều màu</option><option value="ocean">Xanh biển</option><option value="forest">Xanh ngọc</option><option value="violet">Tím hiện đại</option></select></label><label>Độ mờ khối nền: <strong id="opacityValue">94%</strong><input id="surfaceOpacity" type="range" min="65" max="100" step="1" value="94" /></label></div>
+            <div class="settings-accordion-body"><label>Tông màu<select id="themeSelect"><option value="business">Business</option><option value="oneui">One UI</option><option value="ios">iOS sáng</option><option value="dark">Dark</option><option value="sunrise">Sáng nhiều màu</option><option value="ocean">Xanh biển</option><option value="forest">Xanh ngọc</option><option value="violet">Tím hiện đại</option></select></label><label>Màu chữ toàn ứng dụng<input id="appFontColor" type="color" value="#102033" /></label><label>Độ mờ khối nền: <strong id="opacityValue">94%</strong><input id="surfaceOpacity" type="range" min="65" max="100" step="1" value="94" /></label><div class="button-row"><button id="saveAppAppearance" class="btn primary" type="button">Lưu giao diện</button><button id="resetAppFontColor" class="btn secondary" type="button">Màu chữ mặc định</button></div></div>
           </details>
 
           <details id="settingsBackgroundPanel" data-settings-panel-id="background" class="settings-card settings-accordion">
             <summary><div><h3>Hình nền</h3><p>Chọn ảnh từ điện thoại hoặc máy tính.</p></div><span class="accordion-chevron">⌄</span></summary>
-            <div class="settings-accordion-body"><div id="backgroundPreview" class="background-preview"><span>Chưa chọn hình nền</span></div><label>Độ rõ hình nền: <strong id="backgroundOpacityValue">35%</strong><input id="backgroundOpacity" type="range" min="10" max="100" step="1" value="35" /></label><input id="backgroundFile" class="file-input" type="file" accept="image/*" /><div class="button-row"><button id="chooseBackground" class="btn primary" type="button">Chọn hình nền</button><button id="removeBackground" class="btn secondary" type="button">Xóa hình nền</button></div></div>
+            <div class="settings-accordion-body"><div id="backgroundPreview" class="background-preview"><span>Nền Hà Sương mặc định</span></div><label>Độ rõ hình nền: <strong id="backgroundOpacityValue">18%</strong><input id="backgroundOpacity" type="range" min="5" max="100" step="1" value="18" /></label><input id="backgroundFile" class="file-input" type="file" accept="image/*" /><div class="button-row"><button id="useDefaultBackground" class="btn primary" type="button">Nền Hà Sương</button><button id="chooseBackground" class="btn secondary" type="button">Chọn ảnh khác</button><button id="removeBackground" class="btn ghost" type="button">Nền trắng</button></div></div>
           </details>
 
 
