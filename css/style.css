@@ -1153,3 +1153,7 @@ body{
 /* V3.3.1 Final RC — order code follows branch text color */
 .order-code-display{background:transparent!important;border-color:transparent!important;padding-inline:0!important;font-size:14px!important;font-weight:800!important;letter-spacing:.015em!important;box-shadow:none!important}
 @media(max-width:640px){.order-code-display{font-size:12px!important}}
+
+/* V3.3.2 Stability: inventory keyboard confirmation */
+.inventory-table tr.inventory-row-confirmed td{background:rgba(34,197,94,.10);transition:background-color .22s ease}
+body.keyboard-open #inventoryCatalog{padding-bottom:34vh}
