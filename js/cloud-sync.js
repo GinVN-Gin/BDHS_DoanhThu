@@ -15,10 +15,10 @@
   const KEY_META_KEY = "bdhs_sync_key_meta_v1";
   const AUTO_SYNC_DELAY = 350;
   const REQUEST_TIMEOUT = 15000;
-  const CLOUD_POLL_INTERVAL = 5000;
+  const CLOUD_POLL_INTERVAL = 2000;
   const LOGIN_SYNC_GRACE = 3000;
   const REQUEST_RETRY_DELAYS = Object.freeze([0, 1500, 4000]);
-  const SYNC_RETRY_DELAYS = Object.freeze([2000, 5000, 15000, 60000]);
+  const SYNC_RETRY_DELAYS = Object.freeze([1000, 3000, 10000, 30000]);
 
   const DATA_KEYS = Object.freeze([
     "bdhs_revenues_v1",
@@ -44,6 +44,7 @@
   let syncPausedUntil = 0;
   let syncQueued = false;
   let localChangeVersion = 0;
+  let burstCheckTimers = [];
 
 
   function branchCacheKey(branchId) {
@@ -577,6 +578,27 @@
     );
   }
 
+  function clearBurstChecks() {
+    for (const timer of burstCheckTimers) window.clearTimeout(timer);
+    burstCheckTimers = [];
+  }
+
+  function scheduleBurstChecks(delays = [800, 2000, 5000]) {
+    clearBurstChecks();
+    for (const delay of delays) {
+      const timer = window.setTimeout(() => {
+        if (
+          document.visibilityState === "visible" &&
+          navigator.onLine &&
+          getAuth()?.authToken
+        ) {
+          runAutoSync("burst-check");
+        }
+      }, delay);
+      burstCheckTimers.push(timer);
+    }
+  }
+
   function startCloudPolling() {
     if (pollTimer) window.clearInterval(pollTimer);
     const poll = () => {
@@ -878,7 +900,7 @@
     );
     markSyncSuccess();
     if (changedAfterSend) scheduleAutoSync(150);
-    else window.setTimeout(() => runAutoSync("post-push-check"), 1200);
+    else scheduleBurstChecks([800, 2000, 5000]);
     if (didMerge) window.setTimeout(() => window.location.reload(), 500);
     return true;
   }
@@ -1073,7 +1095,8 @@
     });
     window.addEventListener("online", () => {
       clearSyncRetry();
-      scheduleAutoSync(150);
+      scheduleAutoSync(100);
+      scheduleBurstChecks([1000, 2500, 5000]);
     });
     window.addEventListener("offline", () => {
       if (retryTimer) window.clearTimeout(retryTimer);
@@ -1082,7 +1105,10 @@
     });
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden" && hasPendingChanges()) scheduleAutoSync(100);
-      if (document.visibilityState === "visible" && navigator.onLine) scheduleAutoSync(250);
+      if (document.visibilityState === "visible" && navigator.onLine) {
+        scheduleAutoSync(50);
+        scheduleBurstChecks([1000, 2500]);
+      }
     });
     startCloudPolling();
     updateSyncUI();
