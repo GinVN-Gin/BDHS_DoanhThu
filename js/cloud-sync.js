@@ -13,9 +13,9 @@
   const PENDING_PREFIX = "bdhs_cloud_pending_v1_";
   const TOMBSTONES_KEY = "bdhs_sync_tombstones_v1";
   const KEY_META_KEY = "bdhs_sync_key_meta_v1";
-  const AUTO_SYNC_DELAY = 1800;
+  const AUTO_SYNC_DELAY = 350;
   const REQUEST_TIMEOUT = 15000;
-  const CLOUD_POLL_INTERVAL = 30000;
+  const CLOUD_POLL_INTERVAL = 5000;
   const LOGIN_SYNC_GRACE = 3000;
   const REQUEST_RETRY_DELAYS = Object.freeze([0, 1500, 4000]);
   const SYNC_RETRY_DELAYS = Object.freeze([2000, 5000, 15000, 60000]);
@@ -412,7 +412,7 @@
     return {
       schemaVersion: 1,
       exportedAt: new Date().toISOString(),
-      appVersion: "3.3.4-conflict-safe",
+      appVersion: "3.3.5-fast-safe-sync",
       storage,
     };
   }
@@ -579,7 +579,7 @@
 
   function startCloudPolling() {
     if (pollTimer) window.clearInterval(pollTimer);
-    pollTimer = window.setInterval(() => {
+    const poll = () => {
       if (
         document.visibilityState === "visible" &&
         navigator.onLine &&
@@ -589,7 +589,9 @@
       ) {
         runAutoSync("poll");
       }
-    }, CLOUD_POLL_INTERVAL);
+    };
+    pollTimer = window.setInterval(poll, CLOUD_POLL_INTERVAL);
+    window.setTimeout(poll, 800);
   }
 
   function cloudStorageMatchesLocal(data) {
@@ -794,7 +796,7 @@
     return {
       schemaVersion: 1,
       exportedAt: new Date().toISOString(),
-      appVersion: "3.3.4-conflict-safe",
+      appVersion: "3.3.5-fast-safe-sync",
       storage: mergedStorage,
     };
   }
@@ -875,7 +877,8 @@
       `Revision ${result.revision} • ${formatTime(result.updatedAt)}`,
     );
     markSyncSuccess();
-    if (changedAfterSend) scheduleAutoSync(500);
+    if (changedAfterSend) scheduleAutoSync(150);
+    else window.setTimeout(() => runAutoSync("post-push-check"), 1200);
     if (didMerge) window.setTimeout(() => window.location.reload(), 500);
     return true;
   }
@@ -969,7 +972,7 @@
       autoSyncRunning = false;
       if (syncQueued && !retryTimer) {
         syncQueued = false;
-        scheduleAutoSync(500);
+        scheduleAutoSync(150);
       }
     }
   }
@@ -1070,7 +1073,7 @@
     });
     window.addEventListener("online", () => {
       clearSyncRetry();
-      scheduleAutoSync(500);
+      scheduleAutoSync(150);
     });
     window.addEventListener("offline", () => {
       if (retryTimer) window.clearTimeout(retryTimer);
@@ -1078,8 +1081,8 @@
       updateSyncUI();
     });
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "hidden" && hasPendingChanges()) scheduleAutoSync(250);
-      if (document.visibilityState === "visible" && navigator.onLine) scheduleAutoSync(700);
+      if (document.visibilityState === "hidden" && hasPendingChanges()) scheduleAutoSync(100);
+      if (document.visibilityState === "visible" && navigator.onLine) scheduleAutoSync(250);
     });
     startCloudPolling();
     updateSyncUI();
