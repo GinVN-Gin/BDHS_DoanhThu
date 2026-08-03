@@ -128,71 +128,139 @@
     return { buffer: await response.arrayBuffer(), name: "Mẫu mặc định", custom: false };
   }
 
-  function cellRegex(ref) {
-    return new RegExp(`<x:c\\s+([^>]*\\br="${ref}"[^>]*)\\s*(?:\\/>|>([\\s\\S]*?)<\\/x:c>)`);
+  const XLSX_MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+
+  function parseXml(xml, label = "XML") {
+    const documentXml = new DOMParser().parseFromString(xml, "application/xml");
+    const parserError = documentXml.querySelector("parsererror");
+    if (parserError) {
+      throw new Error(`${label} không hợp lệ: ${parserError.textContent.trim()}`);
+    }
+    return documentXml;
   }
 
-  function ensureCell(xml, ref) {
-    if (cellRegex(ref).test(xml)) return xml;
+  function serializeXml(documentXml) {
+    return new XMLSerializer().serializeToString(documentXml);
+  }
 
+  function elementsByLocalName(parent, localName) {
+    return Array.from(parent.getElementsByTagNameNS(XLSX_MAIN_NS, localName));
+  }
+
+  function columnNumber(ref) {
+    const letters = String(ref).match(/^[A-Z]+/)?.[0] || "";
+    let value = 0;
+    for (const letter of letters) value = value * 26 + letter.charCodeAt(0) - 64;
+    return value;
+  }
+
+  function findRow(sheetDocument, rowNumber) {
+    return elementsByLocalName(sheetDocument, "row")
+      .find((row) => Number(row.getAttribute("r")) === Number(rowNumber)) || null;
+  }
+
+  function findCell(row, ref) {
+    return Array.from(row.children)
+      .find((child) => child.localName === "c" && child.getAttribute("r") === ref) || null;
+  }
+
+  function ensureCell(sheetDocument, ref) {
     const match = /^([A-Z]+)(\d+)$/.exec(ref);
     if (!match) throw new Error(`Địa chỉ ô Excel không hợp lệ: ${ref}.`);
-    const rowNumber = match[2];
-    const rowRegex = new RegExp(`<x:row\s+([^>]*\br="${rowNumber}"[^>]*)>([\s\S]*?)<\/x:row>`);
-    const rowMatch = xml.match(rowRegex);
 
-    if (rowMatch) {
-      const replacement = `<x:row ${rowMatch[1]}>${rowMatch[2]}<x:c r="${ref}" /></x:row>`;
-      return xml.replace(rowRegex, replacement);
+    const rowNumber = Number(match[2]);
+    const sheetData = elementsByLocalName(sheetDocument, "sheetData")[0];
+    if (!sheetData) throw new Error("Mẫu Excel thiếu sheetData.");
+
+    let row = findRow(sheetDocument, rowNumber);
+    if (!row) {
+      row = sheetDocument.createElementNS(XLSX_MAIN_NS, "x:row");
+      row.setAttribute("r", String(rowNumber));
+      const nextRow = Array.from(sheetData.children).find(
+        (candidate) => candidate.localName === "row"
+          && Number(candidate.getAttribute("r")) > rowNumber,
+      );
+      sheetData.insertBefore(row, nextRow || null);
     }
 
-    const newRow = `<x:row r="${rowNumber}"><x:c r="${ref}" /></x:row>`;
-    const nextRowRegex = new RegExp(`<x:row\s+[^>]*\br="(\d+)"[^>]*>` , "g");
-    let nextMatch;
-    while ((nextMatch = nextRowRegex.exec(xml))) {
-      if (Number(nextMatch[1]) > Number(rowNumber)) {
-        return xml.slice(0, nextMatch.index) + newRow + xml.slice(nextMatch.index);
+    let cell = findCell(row, ref);
+    if (!cell) {
+      cell = sheetDocument.createElementNS(XLSX_MAIN_NS, "x:c");
+      cell.setAttribute("r", ref);
+      const targetColumn = columnNumber(ref);
+      const nextCell = Array.from(row.children).find(
+        (candidate) => candidate.localName === "c"
+          && columnNumber(candidate.getAttribute("r")) > targetColumn,
+      );
+      row.insertBefore(cell, nextCell || null);
+    }
+    return cell;
+  }
+
+  function clearCellContent(cell) {
+    while (cell.firstChild) cell.removeChild(cell.firstChild);
+    cell.removeAttribute("t");
+  }
+
+  function setCell(sheetDocument, ref, value, type = "number") {
+    const cell = ensureCell(sheetDocument, ref);
+    clearCellContent(cell);
+
+    if (value === null || value === undefined || value === "") return;
+
+    if (type === "string") {
+      cell.setAttribute("t", "inlineStr");
+      const inlineString = sheetDocument.createElementNS(XLSX_MAIN_NS, "x:is");
+      const text = sheetDocument.createElementNS(XLSX_MAIN_NS, "x:t");
+      text.setAttributeNS("http://www.w3.org/XML/1998/namespace", "xml:space", "preserve");
+      text.textContent = String(value);
+      inlineString.appendChild(text);
+      cell.appendChild(inlineString);
+      return;
+    }
+
+    cell.setAttribute("t", "n");
+    const numericValue = sheetDocument.createElementNS(XLSX_MAIN_NS, "x:v");
+    numericValue.textContent = String(safeNumber(value));
+    cell.appendChild(numericValue);
+  }
+
+  function setCells(sheetDocument, values) {
+    for (const [ref, value, type] of values) setCell(sheetDocument, ref, value, type);
+  }
+
+  function clearRange(sheetDocument, columns, startRow, endRow) {
+    const allowedColumns = new Set(columns);
+    for (const cell of elementsByLocalName(sheetDocument, "c")) {
+      const ref = cell.getAttribute("r") || "";
+      const match = /^([A-Z]+)(\d+)$/.exec(ref);
+      if (!match) continue;
+      const rowNumber = Number(match[2]);
+      if (allowedColumns.has(match[1]) && rowNumber >= startRow && rowNumber <= endRow) {
+        clearCellContent(cell);
       }
     }
-    return xml.replace("</x:sheetData>", `${newRow}</x:sheetData>`);
-  }
-
-  function setCell(xml, ref, value, type = "number") {
-    xml = ensureCell(xml, ref);
-    const regex = cellRegex(ref);
-    const match = xml.match(regex);
-    if (!match) throw new Error(`Không thể tạo ô ${ref} trong mẫu Excel.`);
-    let attrs = match[1]
-      .replace(/\s+t="[^"]*"/g, "")
-      .replace(/\s+$/, "");
-    let replacement;
-    if (value === null || value === undefined || value === "") {
-      replacement = `<x:c ${attrs} />`;
-    } else if (type === "string") {
-      replacement = `<x:c ${attrs} t="inlineStr"><x:is><x:t xml:space="preserve">${xmlEscape(value)}</x:t></x:is></x:c>`;
-    } else {
-      replacement = `<x:c ${attrs} t="n"><x:v>${safeNumber(value)}</x:v></x:c>`;
-    }
-    return xml.replace(regex, replacement);
-  }
-
-  function setCells(xml, values) {
-    for (const [ref, value, type] of values) xml = setCell(xml, ref, value, type);
-    return xml;
-  }
-
-  function clearRange(xml, columns, startRow, endRow) {
-    for (let row = startRow; row <= endRow; row += 1) {
-      for (const column of columns) xml = setCell(xml, `${column}${row}`, null, "string");
-    }
-    return xml;
   }
 
   function ensureAutoCalculation(workbookXml) {
-    if (/<x:calcPr\b/.test(workbookXml)) {
-      return workbookXml.replace(/<x:calcPr\b[^>]*\/>/, '<x:calcPr calcMode="auto" fullCalcOnLoad="1" forceFullCalc="1" />');
+    const workbookDocument = parseXml(workbookXml, "workbook.xml");
+    const workbook = elementsByLocalName(workbookDocument, "workbook")[0];
+    if (!workbook) throw new Error("workbook.xml thiếu phần workbook.");
+
+    let calcPr = elementsByLocalName(workbookDocument, "calcPr")[0];
+    if (!calcPr) {
+      calcPr = workbookDocument.createElementNS(XLSX_MAIN_NS, "x:calcPr");
+      workbook.appendChild(calcPr);
     }
-    return workbookXml.replace("</x:workbook>", '<x:calcPr calcMode="auto" fullCalcOnLoad="1" forceFullCalc="1" /></x:workbook>');
+    calcPr.setAttribute("calcMode", "auto");
+    calcPr.setAttribute("fullCalcOnLoad", "1");
+    calcPr.setAttribute("forceFullCalc", "1");
+    return serializeXml(workbookDocument);
+  }
+
+  function assertValidXml(xml, label) {
+    parseXml(xml, label);
+    return xml;
   }
 
   async function fillTemplate(month) {
@@ -217,22 +285,22 @@
     const [year, monthNumber] = month.split("-").map(Number);
 
     // 01_Tổng hợp: chỉ điền thông tin. Các tổng giữ bằng công thức của mẫu.
-    let summaryXml = await zip.file(paths.summary).async("string");
-    summaryXml = setCells(summaryXml, [
+    const summaryDocument = parseXml(await zip.file(paths.summary).async("string"), "sheet1.xml");
+    setCells(summaryDocument, [
       ["B5", businessName(), "string"],
       ["B6", excelSerial(new Date(year, monthNumber - 1, 1)), "number"],
       ["B7", excelSerial(new Date()), "number"],
     ]);
-    zip.file(paths.summary, summaryXml);
+    zip.file(paths.summary, assertValidXml(serializeXml(summaryDocument), "sheet1.xml"));
 
     // 02_Doanh thu: 31 ngày trong một sheet, đúng mục đích báo cáo/đối chiếu.
-    let revenueXml = await zip.file(paths.revenue).async("string");
+    const revenueDocument = parseXml(await zip.file(paths.revenue).async("string"), "sheet2.xml");
     for (let day = 1; day <= 31; day += 1) {
       const row = day + 4;
       const date = `${month}-${String(day).padStart(2, "0")}`;
       const item = data.revenueByDate.get(date) || {};
       const isValidDay = day <= new Date(year, monthNumber, 0).getDate();
-      revenueXml = setCells(revenueXml, [
+      setCells(revenueDocument, [
         [`A${row}`, isValidDay ? day : null, "number"],
         [`C${row}`, isValidDay ? safeNumber(item.cash) : null, "number"],
         [`D${row}`, isValidDay ? safeNumber(item.transfer) : null, "number"],
@@ -241,17 +309,17 @@
         [`H${row}`, isValidDay ? (item.note || item.notes || "") : "", "string"],
       ]);
     }
-    zip.file(paths.revenue, revenueXml);
+    zip.file(paths.revenue, assertValidXml(serializeXml(revenueDocument), "sheet2.xml"));
 
     // 03_Chi vốn: một giao dịch một dòng.
     if (data.purchases.length > 496) throw new Error("Số dòng chi vốn vượt giới hạn 496 dòng của mẫu.");
-    let purchaseXml = await zip.file(paths.purchase).async("string");
-    purchaseXml = clearRange(purchaseXml, ["A", "B", "C", "D", "E", "F", "H", "I"], 5, 500);
+    const purchaseDocument = parseXml(await zip.file(paths.purchase).async("string"), "sheet3.xml");
+    clearRange(purchaseDocument, ["A", "B", "C", "D", "E", "F", "H", "I"], 5, 500);
     [...data.purchases]
       .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")))
       .forEach((item, index) => {
         const row = index + 5;
-        purchaseXml = setCells(purchaseXml, [
+        setCells(purchaseDocument, [
           [`A${row}`, item.date || "", "string"],
           [`B${row}`, item.content || item.note || "", "string"],
           [`C${row}`, item.purchaseType || item.type || "WORKING_CAPITAL", "string"],
@@ -262,18 +330,18 @@
           [`I${row}`, item.orderId || item.linkedOrderId || item.id || "", "string"],
         ]);
       });
-    zip.file(paths.purchase, purchaseXml);
+    zip.file(paths.purchase, assertValidXml(serializeXml(purchaseDocument), "sheet3.xml"));
 
     // 04_Đơn MTF.
     if (data.orders.length > 246) throw new Error("Số đơn MTF vượt giới hạn 246 dòng của mẫu.");
-    let orderXml = await zip.file(paths.orders).async("string");
-    orderXml = clearRange(orderXml, ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"], 5, 250);
+    const orderDocument = parseXml(await zip.file(paths.orders).async("string"), "sheet4.xml");
+    clearRange(orderDocument, ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"], 5, 250);
     data.orders.forEach((order, index) => {
       const row = index + 5;
       const subtotal = safeNumber(order.subtotal || order.goodsTotal || order.beforeVat);
       const vat = safeNumber(order.vat || order.vatAmount);
       const total = safeNumber(order.total || order.grandTotal || subtotal + vat);
-      orderXml = setCells(orderXml, [
+      setCells(orderDocument, [
         [`A${row}`, order.id || order.orderId || "", "string"],
         [`B${row}`, order.date || "", "string"],
         [`C${row}`, order.type === "vat" || order.orderType === "MTF_VAT" ? "MTF VAT" : "MTF", "string"],
@@ -286,7 +354,7 @@
         [`J${row}`, order.note || order.buyer?.note || "", "string"],
       ]);
     });
-    zip.file(paths.orders, orderXml);
+    zip.file(paths.orders, assertValidXml(serializeXml(orderDocument), "sheet4.xml"));
 
     // 05_Kiểm kê: snapshot của tháng.
     const inventoryItems = Array.isArray(data.inventory?.groups)
@@ -297,11 +365,11 @@
         })))
       : (data.inventory?.items || []);
     if (inventoryItems.length > 196) throw new Error("Danh sách kiểm kê vượt giới hạn 196 dòng của mẫu.");
-    let inventoryXml = await zip.file(paths.inventory).async("string");
-    inventoryXml = clearRange(inventoryXml, ["A", "B", "C", "D", "E", "G", "H"], 5, 200);
+    const inventoryDocument = parseXml(await zip.file(paths.inventory).async("string"), "sheet5.xml");
+    clearRange(inventoryDocument, ["A", "B", "C", "D", "E", "G", "H"], 5, 200);
     inventoryItems.forEach((item, index) => {
       const row = index + 5;
-      inventoryXml = setCells(inventoryXml, [
+      setCells(inventoryDocument, [
         [`A${row}`, item.groupName || item.group || "", "string"],
         [`B${row}`, item.name || "", "string"],
         [`C${row}`, item.unit || "", "string"],
@@ -311,15 +379,15 @@
         [`H${row}`, item.note || "", "string"],
       ]);
     });
-    zip.file(paths.inventory, inventoryXml);
+    zip.file(paths.inventory, assertValidXml(serializeXml(inventoryDocument), "sheet5.xml"));
 
     // 06_Danh mục.
     if (data.catalog.length > 196) throw new Error("Danh mục vượt giới hạn 196 dòng của mẫu.");
-    let catalogXml = await zip.file(paths.catalog).async("string");
-    catalogXml = clearRange(catalogXml, ["A", "B", "C", "D", "E", "F"], 5, 200);
+    const catalogDocument = parseXml(await zip.file(paths.catalog).async("string"), "sheet6.xml");
+    clearRange(catalogDocument, ["A", "B", "C", "D", "E", "F"], 5, 200);
     data.catalog.forEach((item, index) => {
       const row = index + 5;
-      catalogXml = setCells(catalogXml, [
+      setCells(catalogDocument, [
         [`A${row}`, item.id || item.code || `HH${String(index + 1).padStart(3, "0")}`, "string"],
         [`B${row}`, item.name || "", "string"],
         [`C${row}`, item.groupName || item.group || "", "string"],
@@ -328,7 +396,7 @@
         [`F${row}`, safeNumber(item.stock || item.fixedStock || item.targetStock || item.target), "number"],
       ]);
     });
-    zip.file(paths.catalog, catalogXml);
+    zip.file(paths.catalog, assertValidXml(serializeXml(catalogDocument), "sheet6.xml"));
 
     const workbookPath = "xl/workbook.xml";
     const workbookXml = ensureAutoCalculation(await zip.file(workbookPath).async("string"));
