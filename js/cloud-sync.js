@@ -2,7 +2,7 @@
 
 (() => {
   const SERVER_URL =
-    "https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnTIdfnpoRFPP3WtbuFo2fgg1o0rXT3oLpnziWLtYyFaQX8syxzU2tm22tguEgHe-GrhIt693Ojt67tIuHcAocUUAn4kpBbtdlwh9tXixy2fd0dAm4JtIE6YNAoe5YmZ_DMa934rw7pHPvmnndHSZQquK86cmWQOcQV5UWIVsJxyv8w2LjzqAmyVDmUW8JNiqseXkTgZA2arKCd9jfhbRYjFIBaDQXxNiRUwnAccY8bGAAvcWzN557iaiD2_QIge0ZEp1Q9CeDMlmq-mDLAhRU6uz5ZgAg&lib=MYnhhqoujSvTM1ntnnrSUs0Zq0LVqQhBG";
+    "https://script.google.com/macros/s/AKfycbzzIWdvvh6Q33FOWLtpV8UFXmlWG4-03xY2XbLSRKYYb1FZC03W_rWmK_P-1iIX1o9B/exec";
   const AUTH_KEY = "bdhs_cloud_auth_v3";
   const USERNAME_KEY = "bdhs_cloud_username_v3";
   const REVISION_PREFIX = "bdhs_cloud_revision_v1_";
