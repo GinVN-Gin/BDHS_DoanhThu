@@ -132,10 +132,36 @@
     return new RegExp(`<x:c\\s+([^>]*\\br="${ref}"[^>]*)\\s*(?:\\/>|>([\\s\\S]*?)<\\/x:c>)`);
   }
 
+  function ensureCell(xml, ref) {
+    if (cellRegex(ref).test(xml)) return xml;
+
+    const match = /^([A-Z]+)(\d+)$/.exec(ref);
+    if (!match) throw new Error(`Địa chỉ ô Excel không hợp lệ: ${ref}.`);
+    const rowNumber = match[2];
+    const rowRegex = new RegExp(`<x:row\s+([^>]*\br="${rowNumber}"[^>]*)>([\s\S]*?)<\/x:row>`);
+    const rowMatch = xml.match(rowRegex);
+
+    if (rowMatch) {
+      const replacement = `<x:row ${rowMatch[1]}>${rowMatch[2]}<x:c r="${ref}" /></x:row>`;
+      return xml.replace(rowRegex, replacement);
+    }
+
+    const newRow = `<x:row r="${rowNumber}"><x:c r="${ref}" /></x:row>`;
+    const nextRowRegex = new RegExp(`<x:row\s+[^>]*\br="(\d+)"[^>]*>` , "g");
+    let nextMatch;
+    while ((nextMatch = nextRowRegex.exec(xml))) {
+      if (Number(nextMatch[1]) > Number(rowNumber)) {
+        return xml.slice(0, nextMatch.index) + newRow + xml.slice(nextMatch.index);
+      }
+    }
+    return xml.replace("</x:sheetData>", `${newRow}</x:sheetData>`);
+  }
+
   function setCell(xml, ref, value, type = "number") {
+    xml = ensureCell(xml, ref);
     const regex = cellRegex(ref);
     const match = xml.match(regex);
-    if (!match) throw new Error(`Mẫu Excel thiếu ô ${ref}.`);
+    if (!match) throw new Error(`Không thể tạo ô ${ref} trong mẫu Excel.`);
     let attrs = match[1]
       .replace(/\s+t="[^"]*"/g, "")
       .replace(/\s+$/, "");
